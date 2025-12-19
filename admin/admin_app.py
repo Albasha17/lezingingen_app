@@ -2,6 +2,7 @@ import streamlit as st
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 from datetime import datetime, time
+import urllib.parse
 
 # --- 1. BEVEILIGING (PASSWORD CHECK) ---
 def check_password():
@@ -47,19 +48,29 @@ with st.form("event_form"):
         time_end = st.time_input("Eindtijd", value=time(21, 0))
         
         st.subheader("👤 Spreker Info")
-        speaker_name = st.text_input("Naam Spreker")
-        speaker_role = st.text_input("Rol / Functie")
+        speaker_name = st.text_input("Naam Spreker", "Robert de Groot")
+        speaker_role = st.text_input("Rol / Functie", "Vice-President EIB")
         speaker_bio = st.text_area("Biografie", height=150)
         speaker_img = st.text_input("Link naar foto (URL)")
         speaker_linkedin = st.text_input("Link naar LinkedIn")
 
     with c2:
         st.subheader("📍 Locaties")
+        # Diner
         loc_dinner_name = st.text_input("Naam Restaurant", "Restaurant & Pizzeria Lucca Due")
         loc_dinner_addr = st.text_input("Adres Restaurant", "Haarlemmerstraat 130, Amsterdam")
+        # Default Google Maps link genereren
+        def_maps_din = f"https://www.google.com/maps/search/?api=1&query={urllib.parse.quote('Restaurant & Pizzeria Lucca Due Haarlemmerstraat 130, Amsterdam')}"
+        link_maps_dinner = st.text_input("Google Maps Link Diner", def_maps_din)
         
+        st.markdown("---")
+        
+        # Lezing
         loc_lecture_name = st.text_input("Naam Locatie Lezing", "De Piramide")
         loc_lecture_addr = st.text_input("Adres Locatie Lezing", "Haarlemmer Houttuinen, Amsterdam")
+        # Default Google Maps link genereren
+        def_maps_lec = f"https://www.google.com/maps/search/?api=1&query={urllib.parse.quote('De Piramide Haarlemmer Houttuinen, Amsterdam')}"
+        link_maps_lecture = st.text_input("Google Maps Link Lezing", def_maps_lec)
         
         st.subheader("🔗 Links")
         link_video = st.text_input("Google Meet / Video Link")
@@ -73,11 +84,11 @@ if submitted:
         client = get_client()
         sh = client.open("EU_Lezingen_Master")
         
-        # Naam van het tabblad bepalen (bv: Aanmeldingen_Januari_2026)
+        # Naam van het tabblad bepalen
         maand_namen = {1:"Januari", 2:"Februari", 3:"Maart", 4:"April", 5:"Mei", 6:"Juni", 7:"Juli", 8:"Augustus", 9:"September", 10:"Oktober", 11:"November", 12:"December"}
         sheet_name = f"Aanmeldingen_{maand_namen[event_date.month]}_{event_date.year}"
         
-        # Check of tabblad bestaat, anders maken
+        # Check of tabblad bestaat
         try:
             sh.worksheet(sheet_name)
             st.warning(f"⚠️ Het tabblad '{sheet_name}' bestond al. We gebruiken deze.")
@@ -100,8 +111,10 @@ if submitted:
             ["TIME_END", str(time_end)],
             ["LOC_DINNER_NAME", loc_dinner_name],
             ["LOC_DINNER_ADDR", loc_dinner_addr],
+            ["LINK_MAPS_DINNER", link_maps_dinner],   # NIEUW
             ["LOC_LECTURE_NAME", loc_lecture_name],
             ["LOC_LECTURE_ADDR", loc_lecture_addr],
+            ["LINK_MAPS_LECTURE", link_maps_lecture], # NIEUW
             ["LINK_VIDEO", link_video],
             ["LINK_PAYMENT", link_payment],
             ["CURRENT_SHEET_NAME", sheet_name]
@@ -109,7 +122,7 @@ if submitted:
         
         ws_config = sh.worksheet("Config")
         ws_config.clear()
-        ws_config.update(config_data) # Let op: bij oudere gspread versies kan dit update_cells zijn
+        ws_config.update(config_data) 
         
         st.balloons()
         st.success("✅ Configuratie opgeslagen! De bezoekers-app is nu geüpdatet.")
