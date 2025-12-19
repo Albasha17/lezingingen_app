@@ -97,7 +97,11 @@ with st.form("event_form"):
         speaker_role = st.text_input("Rol / Functie")
         
         speaker_bio = st.text_area("Biografie", height=150)
-        speaker_img = st.text_input("Link naar foto (URL)")
+        
+        # AANGEPAST: Descriptor toegevoegd (Help + Caption)
+        speaker_img = st.text_input("Link naar foto (URL)", help="De foto moet horizontaal (liggend) georiënteerd zijn.")
+        st.caption("⚠️ Let op: Gebruik een horizontale (liggende) foto.")
+        
         speaker_linkedin = st.text_input("Link naar LinkedIn")
 
     with c2:
@@ -177,11 +181,9 @@ st.divider()
 st.subheader("📢 Nieuwsbrief / Uitnodiging Export")
 st.info("Gebruik dit om de uitnodiging voor Mailchimp te genereren. Vul eerst bovenstaand formulier in.")
 
-# AANGEPAST: Label aangepast
 app_url_input = st.text_input("Link (URL) naar de Aanmeld App (alleen aanpassen als adres aanmeld-app is veranderd)", "https://eustudiegroep.streamlit.app/")
 
 if st.button("Genereer Mailchimp HTML"):
-    # We gebruiken de variabelen uit de UI widgets van hierboven
     html_output = generate_mailchimp_html(
         speaker_name, speaker_role, speaker_bio, speaker_img,
         event_date, time_dinner, time_lecture,
