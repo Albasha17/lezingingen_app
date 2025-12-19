@@ -93,7 +93,6 @@ with st.form("event_form"):
         time_end = st.time_input("Eindtijd", value=time(21, 0))
         
         st.subheader("👤 Spreker Info")
-        # AANGEPAST: Geen default waarden meer
         speaker_name = st.text_input("Naam Spreker")
         speaker_role = st.text_input("Rol / Functie")
         
@@ -178,8 +177,8 @@ st.divider()
 st.subheader("📢 Nieuwsbrief / Uitnodiging Export")
 st.info("Gebruik dit om de uitnodiging voor Mailchimp te genereren. Vul eerst bovenstaand formulier in.")
 
-# AANGEPAST: Nieuwe URL als default
-app_url_input = st.text_input("Link naar de Aanmeld App (kopieer de URL van je browser)", "https://eustudiegroep.streamlit.app/")
+# AANGEPAST: Label aangepast
+app_url_input = st.text_input("Link (URL) naar de Aanmeld App (alleen aanpassen als adres aanmeld-app is veranderd)", "https://eustudiegroep.streamlit.app/")
 
 if st.button("Genereer Mailchimp HTML"):
     # We gebruiken de variabelen uit de UI widgets van hierboven
