@@ -121,7 +121,7 @@ with st.form("event_form"):
         link_maps_lecture = st.text_input("Google Maps Link Lezing", def_maps_lec)
         
         st.subheader("🔗 Links")
-        link_video = st.text_input("Google Meet / Video Link")
+        link_video = st.text_input("Google Meet / Videolink")
         link_payment = st.text_input("Betaalverzoek Link (Bunq/Tikkie)")
 
     st.markdown("---")
