@@ -23,17 +23,26 @@ def check_password():
     else:
         return True
 
+# --- 2. CONFIGURATIE PAGINA ---
+st.set_page_config(
+    page_title="Admin: Nieuwe Lezing", 
+    page_icon="🛠️", 
+    layout="wide", 
+    initial_sidebar_state="expanded"  # <--- AANGEPAST: Sidebar staat nu standaard open
+)
+
+# Wachtwoord check uitvoeren na page config
 if not check_password():
     st.stop()
 
-# --- 2. CONNECTIE HELPER ---
+# --- 3. CONNECTIE HELPER ---
 def get_client():
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
     creds_dict = st.secrets["gcp_service_account"]
     creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
     return gspread.authorize(creds)
 
-# --- 3. HELPER: HTML GENERATOR VOOR MAILCHIMP ---
+# --- 4. HELPER: HTML GENERATOR VOOR MAILCHIMP ---
 def generate_mailchimp_html(speaker, role, bio, img, date_obj, t_din, t_lec, l_din_n, l_din_a, map_din, l_lec_n, l_lec_a, map_lec, app_link):
     # Datums en tijden formatteren
     maanden = {1:"januari", 2:"februari", 3:"maart", 4:"april", 5:"mei", 6:"juni", 7:"juli", 8:"augustus", 9:"september", 10:"oktober", 11:"november", 12:"december"}
@@ -41,7 +50,7 @@ def generate_mailchimp_html(speaker, role, bio, img, date_obj, t_din, t_lec, l_d
     din_str = t_din.strftime('%H:%M')
     lec_str = t_lec.strftime('%H:%M')
 
-    # HTML Opbouw (Inline CSS voor maximale compatibiliteit)
+    # HTML Opbouw
     html = f"""
     <div style="font-family: Arial, sans-serif; color: #333333; line-height: 1.5; max-width: 600px; margin: 0 auto;">
         <h1 style="color: #0E3A73; margin-bottom: 5px;">EU Studiegroep {maanden[date_obj.month].capitalize()}</h1>
@@ -79,8 +88,7 @@ def generate_mailchimp_html(speaker, role, bio, img, date_obj, t_din, t_lec, l_d
     """
     return html
 
-# --- 4. UI ---
-st.set_page_config(page_title="Admin: Nieuwe Lezing", page_icon="🛠️", layout="wide")
+# --- 5. UI OPBOUW ---
 st.title("🛠️ Organisator Dashboard")
 
 with st.form("event_form"):
@@ -95,13 +103,9 @@ with st.form("event_form"):
         st.subheader("👤 Spreker Info")
         speaker_name = st.text_input("Naam Spreker")
         speaker_role = st.text_input("Rol / Functie")
-        
         speaker_bio = st.text_area("Biografie", height=150)
-        
-        # AANGEPAST: Descriptor toegevoegd (Help + Caption)
         speaker_img = st.text_input("Link naar foto (URL)", help="De foto moet horizontaal (liggend) georiënteerd zijn.")
         st.caption("⚠️ Let op: Gebruik een horizontale (liggende) foto.")
-        
         speaker_linkedin = st.text_input("Link naar LinkedIn")
 
     with c2:
@@ -121,11 +125,28 @@ with st.form("event_form"):
         link_maps_lecture = st.text_input("Google Maps Link Lezing", def_maps_lec)
         
         st.subheader("🔗 Links")
-        link_video = st.text_input("Google Meet / Videolink")
+        link_video = st.text_input("Google Meet / Video Link")
         link_payment = st.text_input("Betaalverzoek Link (Bunq/Tikkie)")
 
     st.markdown("---")
-    submitted = st.form_submit_button("💾 Opslaan & Live Zetten", type="primary")
+    
+    # CSS OM DE KNOP BLAUW TE MAKEN
+    st.markdown("""
+        <style>
+        div[data-testid="stForm"] button {
+            background-color: #007bff !important; /* Blauw */
+            color: white !important;
+            border: none;
+            font-weight: bold;
+        }
+        div[data-testid="stForm"] button:hover {
+            background-color: #0056b3 !important; /* Donkerder blauw bij hover */
+            color: white !important;
+        }
+        </style>
+    """, unsafe_allow_html=True)
+
+    submitted = st.form_submit_button("💾 Opslaan & Live Zetten")
 
 # --- VERWERKING ---
 if submitted:
