@@ -193,7 +193,7 @@ def create_ics_content(title, start_dt, end_dt, location, description):
     return f"BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//LezingApp//NL\nMETHOD:REQUEST\nBEGIN:VEVENT\nUID:{datetime.now().strftime(fmt)}@lezingapp\nDTSTAMP:{datetime.now().strftime(fmt)}\nDTSTART:{start_dt.strftime(fmt)}\nDTEND:{end_dt.strftime(fmt)}\nSUMMARY:{title}\nDESCRIPTION:{description.replace(chr(10), '\\n')}\nLOCATION:{location}\nSTATUS:CONFIRMED\nEND:VEVENT\nEND:VCALENDAR"
 
 # --- 3. UI OPBOUW ---
-st.set_page_config(page_title="Aanmelding Lezing", page_icon="🇪🇺")
+st.set_page_config(page_title="Aanmelding Lezing", page_icon="🇪🇺", initial_sidebar_state="collapsed")
 
 maand_naam, maand_emoji = get_month_details(EVENT_DATE)
 dag_naam = get_dutch_day_name(EVENT_DATE)
