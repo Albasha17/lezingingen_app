@@ -47,8 +47,8 @@ with st.form("event_form"):
         time_end = st.time_input("Eindtijd", value=time(21, 0))
         
         st.subheader("👤 Spreker Info")
-        speaker_name = st.text_input("Naam Spreker", "Robert de Groot")
-        speaker_role = st.text_input("Rol / Functie", "Vice-President EIB")
+        speaker_name = st.text_input("Naam Spreker")
+        speaker_role = st.text_input("Rol / Functie")
         speaker_bio = st.text_area("Biografie", height=150)
         speaker_img = st.text_input("Link naar foto (URL)")
         speaker_linkedin = st.text_input("Link naar LinkedIn")
