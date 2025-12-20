@@ -8,7 +8,7 @@ import smtplib
 import unicodedata
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from email.utils import formataddr  # <--- Nieuw: voor mooie afzendernaam
+from email.utils import formataddr  # Nodig voor de naam van de afzender
 
 # --- 1. CONFIGURATIE LADEN ---
 def load_config():
@@ -41,7 +41,7 @@ SPEAKER_BIO = conf.get("SPEAKER_BIO", "")
 SPEAKER_LINKEDIN = conf.get("SPEAKER_LINKEDIN", "")
 EVENT_IMAGE = conf.get("EVENT_IMAGE", "")
 
-# CONTACT EMAIL (Voor de mailto knop onderaan)
+# CONTACT EMAIL (Voor Reply-To en Mail-knop)
 CONTACT_EMAIL_GROUP = "eustudiegroep@googlegroups.com"
 
 try:
@@ -132,8 +132,11 @@ def send_confirmation_email(to_email, name, attend_type, dinner_choice, full_sub
         
         msg = MIMEMultipart("mixed")
         
-        # OPLOSSING: We gebruiken jouw Gmail, maar zetten de NAAM op 'EU Studiegroep'
+        # 1. Visuele afzender: "EU Studiegroep" (maar technisch jouw Gmail)
         msg['From'] = formataddr(("EU Studiegroep", smtp_sender))
+        
+        # 2. Reply-To: Antwoorden gaan naar de Google Group!
+        msg.add_header('Reply-To', CONTACT_EMAIL_GROUP)
         
         msg['To'] = safe_to_email
         msg['Subject'] = force_ascii(full_subject_line)
@@ -173,7 +176,6 @@ def send_confirmation_email(to_email, name, attend_type, dinner_choice, full_sub
             <br><br><p>De officiële agenda-uitnodiging (voor Outlook/Apple) vind je ook als bijlage bij deze mail.</p>
             <p>Tot dan!<br>Groet,<br><strong>EU Studiegroep</strong> 🇪🇺</p></body></html>"""
         
-        # CORRECTIE: msg_body variabele naam consistent gemaakt
         msg_body = MIMEMultipart("alternative")
         msg_body.attach(MIMEText(f"Beste {name},\n\nLeuk dat je erbij bent! Jouw keuze: {keuze_samenvatting}\n\nZie HTML mail voor details.", 'plain', 'utf-8'))
         msg_body.attach(MIMEText(html_body, 'html', 'utf-8'))
@@ -273,7 +275,7 @@ elif basis_vraag == "Ja":
         
         submitted = st.form_submit_button("Bevestig Aanmelding")
 
-    # LOGICA BUITEN FORM (FIXT DE DOWNLOAD BUTTON ERROR)
+    # LOGICA BUITEN FORM
     if submitted:
         if not vn or not an or not email:
             st.error("Vul alle velden in.")
