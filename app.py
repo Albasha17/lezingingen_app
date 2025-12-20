@@ -8,7 +8,7 @@ import smtplib
 import unicodedata
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from email.utils import formataddr  # Nodig voor de naam van de afzender
+from email.utils import formataddr
 
 # --- 1. CONFIGURATIE LADEN ---
 def load_config():
@@ -41,7 +41,7 @@ SPEAKER_BIO = conf.get("SPEAKER_BIO", "")
 SPEAKER_LINKEDIN = conf.get("SPEAKER_LINKEDIN", "")
 EVENT_IMAGE = conf.get("EVENT_IMAGE", "")
 
-# CONTACT EMAIL (Voor Reply-To en Mail-knop)
+# CONTACT EMAIL
 CONTACT_EMAIL_GROUP = "eustudiegroep@googlegroups.com"
 
 try:
@@ -131,13 +131,8 @@ def send_confirmation_email(to_email, name, attend_type, dinner_choice, full_sub
         safe_to_email = force_ascii(to_email)
         
         msg = MIMEMultipart("mixed")
-        
-        # 1. Visuele afzender: "EU Studiegroep" (maar technisch jouw Gmail)
         msg['From'] = formataddr(("EU Studiegroep", smtp_sender))
-        
-        # 2. Reply-To: Antwoorden gaan naar de Google Group!
         msg.add_header('Reply-To', CONTACT_EMAIL_GROUP)
-        
         msg['To'] = safe_to_email
         msg['Subject'] = force_ascii(full_subject_line)
 
@@ -330,6 +325,13 @@ elif basis_vraag == "Ja":
 
 st.markdown("---")
 st.markdown("### 🙋 Vragen?")
-st.write("Heb je vragen of lukt het aanmelden niet? Stuur ons gerust een mailtje.")
+# TEKST AANGEPAST
+st.write(f"Heb je vragen of lukt het aanmelden niet? Stuur ons gerust een mailtje ({CONTACT_EMAIL_GROUP}).")
+
 mailto = f"mailto:{CONTACT_EMAIL_GROUP}?subject={urllib.parse.quote(f'Vraag lezing {maand_naam} - {SPEAKER_NAME}')}"
-st.markdown(f'''<a href="{mailto}" target="_blank" style="text-decoration:none;"><button style="background-color:#6c757d;color:white;border:none;padding:8px 16px;border-radius:5px;cursor:pointer;font-size:16px;">📧 E-mail ons</button></a>''', unsafe_allow_html=True)
+
+# HOVER TITLE TOEGEVOEGD
+st.markdown(f'''<a href="{mailto}" target="_blank" style="text-decoration:none;">
+<button title="{CONTACT_EMAIL_GROUP}" style="background-color:#6c757d;color:white;border:none;padding:8px 16px;border-radius:5px;cursor:pointer;font-size:16px;">
+📧 E-mail ons
+</button></a>''', unsafe_allow_html=True)
