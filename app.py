@@ -40,6 +40,9 @@ SPEAKER_BIO = conf.get("SPEAKER_BIO", "")
 SPEAKER_LINKEDIN = conf.get("SPEAKER_LINKEDIN", "")
 EVENT_IMAGE = conf.get("EVENT_IMAGE", "")
 
+# CONTACT EMAIL (AANGEPAST)
+CONTACT_EMAIL = "eustudiegroep@googlegroups.com"
+
 try:
     EVENT_DATE = datetime.strptime(conf.get("EVENT_DATE", "2026-01-01"), "%Y-%m-%d").date()
 except:
@@ -60,8 +63,7 @@ LOC_DINNER_ADDR = conf.get("LOC_DINNER_ADDR", "")
 LOC_LECTURE_NAME = conf.get("LOC_LECTURE_NAME", "")
 LOC_LECTURE_ADDR = conf.get("LOC_LECTURE_ADDR", "")
 
-# LINKS (AANGEPAST: Haal nu de maps links uit config)
-# Fallback naar generated als config leeg is (voor backward compatibility)
+# LINKS
 def get_maps_link(conf_key, name, addr):
     link = conf.get(conf_key, "")
     if link and "http" in link:
@@ -120,14 +122,17 @@ def render_program_card(emoji, title, clock_emoji, time_str, loc_name, loc_addr,
 # --- EMAIL FUNCTIE ---
 def send_confirmation_email(to_email, name, attend_type, dinner_choice, full_subject_line, google_link, ics_content):
     try:
+        # We gebruiken de Gmail credentials uit secrets om in te loggen
         raw_sender = st.secrets["email"]["sender_email"]
         raw_password = st.secrets["email"]["app_password"]
-        smtp_sender = force_ascii(raw_sender)
+        
+        smtp_login_user = force_ascii(raw_sender)
         smtp_password = force_ascii(raw_password)
         safe_to_email = force_ascii(to_email)
         
         msg = MIMEMultipart("mixed")
-        msg['From'] = smtp_sender
+        # Hier zetten we de VISUELE afzender op de Google Group
+        msg['From'] = CONTACT_EMAIL 
         msg['To'] = safe_to_email
         msg['Subject'] = force_ascii(full_subject_line)
 
@@ -166,6 +171,7 @@ def send_confirmation_email(to_email, name, attend_type, dinner_choice, full_sub
             <br><br><p>De officiële agenda-uitnodiging (voor Outlook/Apple) vind je ook als bijlage bij deze mail.</p>
             <p>Tot dan!<br>Groet,<br><strong>EU Studiegroep</strong> 🇪🇺</p></body></html>"""
         
+        msg_body = MIMEMultipart("alternative")
         msg_body.attach(MIMEText(f"Beste {name},\n\nLeuk dat je erbij bent! Jouw keuze: {keuze_samenvatting}\n\nZie HTML mail voor details.", 'plain', 'utf-8'))
         msg_body.attach(MIMEText(html_body, 'html', 'utf-8'))
         msg.attach(msg_body)
@@ -176,7 +182,7 @@ def send_confirmation_email(to_email, name, attend_type, dinner_choice, full_sub
             msg.attach(part)
 
         server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
-        server.login(smtp_sender, smtp_password)
+        server.login(smtp_login_user, smtp_password)
         server.send_message(msg)
         server.quit()
         return True
@@ -283,5 +289,6 @@ elif basis_vraag == "Ja":
 st.markdown("---")
 st.markdown("### 🙋 Vragen?")
 st.write("Heb je vragen of lukt het aanmelden niet? Stuur ons gerust een mailtje.")
-mailto = f"mailto:studiegroepeu@gmail.com?subject={urllib.parse.quote(f'Vraag lezing {maand_naam} - {SPEAKER_NAME}')}"
+# AANGEPAST: Direct naar Google Groups adres
+mailto = f"mailto:{CONTACT_EMAIL}?subject={urllib.parse.quote(f'Vraag lezing {maand_naam} - {SPEAKER_NAME}')}"
 st.markdown(f'''<a href="{mailto}" target="_blank" style="text-decoration:none;"><button style="background-color:#6c757d;color:white;border:none;padding:8px 16px;border-radius:5px;cursor:pointer;font-size:16px;">📧 E-mail ons</button></a>''', unsafe_allow_html=True)
