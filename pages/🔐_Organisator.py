@@ -185,3 +185,31 @@ if submitted:
             ["LOC_LECTURE_ADDR", loc_lecture_addr],
             ["LINK_MAPS_LECTURE", link_maps_lecture],
             ["LINK_VIDEO", link_video],
+            ["LINK_PAYMENT", link_payment],
+            ["CURRENT_SHEET_NAME", sheet_name]
+        ]
+        
+        ws_config = sh.worksheet("Config")
+        ws_config.clear()
+        ws_config.update(config_data) 
+        
+        st.balloons()
+        st.success("✅ Configuratie succesvol opgeslagen! De website is nu bijgewerkt.")
+        
+    except Exception as e:
+        st.error(f"Fout: {e}")
+
+# --- EXTRA: MAILCHIMP EXPORT ---
+st.divider()
+st.subheader("📢 Nieuwsbrief / Uitnodiging Export")
+app_url_input = st.text_input("Link naar App", "https://eustudiegroep.streamlit.app/")
+
+if st.button("Genereer Mailchimp HTML"):
+    html_output = generate_mailchimp_html(
+        speaker_name, speaker_role, speaker_bio, speaker_img,
+        event_date, time_dinner, time_lecture,
+        loc_dinner_name, loc_dinner_addr, link_maps_dinner,
+        loc_lecture_name, loc_lecture_addr, link_maps_lecture,
+        app_url_input
+    )
+    st.text_area("Kopieer deze code:", html_output, height=300)
