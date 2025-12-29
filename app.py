@@ -10,6 +10,9 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.utils import formataddr
 
+# --- BELANGRIJK: PLAK HIER DE URL VAN JE GOOGLE SHEET ---
+SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1OAF5Y4TIVMUUM1xXzcRY2VpMw2dF9vPA5Z4NtZr2gTg/edit?gid=0#gid=0"
+
 # --- 1. CONFIGURATIE LADEN ---
 def load_config():
     scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
@@ -18,13 +21,19 @@ def load_config():
     client = gspread.authorize(creds)
     
     try:
-        sh = client.open("EU_Lezingen_Master")
+        # We gebruiken de URL, dat is het meest robuust
+        if "docs.google.com" in SPREADSHEET_URL:
+            sh = client.open_by_url(SPREADSHEET_URL)
+        else:
+            # Fallback op naam
+            sh = client.open("EU_Lezingen_Master")
+
         ws = sh.worksheet("Config")
         data = ws.get_all_values()
         config = {row[0]: row[1] for row in data if len(row) > 1 and row[0] != "KEY"}
         return config, client
     except Exception as e:
-        st.error(f"Kan configuratie niet laden: {e}")
+        st.error(f"Kan configuratie niet laden. Fout: {e}")
         return {}, client
 
 if 'config_data' not in st.session_state:
@@ -41,8 +50,8 @@ SPEAKER_BIO = conf.get("SPEAKER_BIO", "")
 SPEAKER_LINKEDIN = conf.get("SPEAKER_LINKEDIN", "")
 EVENT_IMAGE = conf.get("EVENT_IMAGE", "")
 
-# CONTACT EMAIL
-CONTACT_EMAIL_GROUP = "eustudiegroep@googlegroups.com"
+# HIER STAAT HET EMAILADRES DAT ONDERAAN DE PAGINA KOMT
+CONTACT_EMAIL = "eustudiegroep@gmail.com"
 
 try:
     EVENT_DATE = datetime.strptime(conf.get("EVENT_DATE", "2026-01-01"), "%Y-%m-%d").date()
@@ -78,7 +87,6 @@ LINK_VIDEO = conf.get("LINK_VIDEO", "")
 LINK_PAYMENT = conf.get("LINK_PAYMENT", "")
 
 SHEET_NAME_CURRENT = conf.get("CURRENT_SHEET_NAME", "Backup_Sheet")
-MASTER_SHEET_NAME = "EU_Lezingen_Master"
 
 CLOCK_DINNER = "🕕"
 CLOCK_LECTURE = "🕢"
@@ -97,11 +105,18 @@ def get_dutch_day_name(date_obj):
 def save_to_sheet(name, email, attend_type, dinner_choice):
     client = st.session_state.gspread_client
     try:
-        sheet = client.open(MASTER_SHEET_NAME).worksheet(SHEET_NAME_CURRENT)
+        if "docs.google.com" in SPREADSHEET_URL:
+            sheet = client.open_by_url(SPREADSHEET_URL).worksheet(SHEET_NAME_CURRENT)
+        else:
+            sheet = client.open("EU_Lezingen_Master").worksheet(SHEET_NAME_CURRENT)
+            
         timestamp = datetime.now(ams_tz).strftime("%d-%m-%Y %H:%M:%S")
         sheet.append_row([name, email, attend_type, dinner_choice, timestamp])
     except gspread.WorksheetNotFound:
         st.error(f"Fout: Tabblad '{SHEET_NAME_CURRENT}' bestaat niet.")
+        raise
+    except Exception as e:
+        st.error(f"Fout bij opslaan: {e}")
         raise
 
 def force_ascii(text):
@@ -131,8 +146,13 @@ def send_confirmation_email(to_email, name, attend_type, dinner_choice, full_sub
         safe_to_email = force_ascii(to_email)
         
         msg = MIMEMultipart("mixed")
+        
+        # Afzender: EU Studiegroep <eustudiegroep@gmail.com>
         msg['From'] = formataddr(("EU Studiegroep", smtp_sender))
-        msg.add_header('Reply-To', CONTACT_EMAIL_GROUP)
+        
+        # Reply-To: eustudiegroep@gmail.com
+        msg.add_header('Reply-To', CONTACT_EMAIL)
+        
         msg['To'] = safe_to_email
         msg['Subject'] = force_ascii(full_subject_line)
 
@@ -231,7 +251,6 @@ st.divider()
 st.markdown("### 📝 Aanmelden")
 basis_vraag = st.radio(f"Ben je erbij op {datum_zonder_nul}?", ["Selecteer...", "Ja", "Nee"], index=0)
 
-# SESSION STATE RESET
 if 'submission_success' not in st.session_state:
     st.session_state.submission_success = False
 if 'success_data' not in st.session_state:
@@ -258,7 +277,6 @@ elif basis_vraag == "Ja":
     st.markdown("""<style>div[data-testid="stForm"] button {background-color: #28a745 !important; color: white !important; border: none; font-weight: bold;} div[data-testid="stForm"] button:hover {background-color: #218838 !important; color: white !important;}</style>""", unsafe_allow_html=True)
     att_type = st.radio("Hoe wil je de lezing bijwonen?", ["Fysiek aanwezig", "Online (Videolink)"])
     
-    # INPUT FORM
     with st.form("registration_form"):
         c1, c2 = st.columns(2)
         with c1: vn = st.text_input("Voornaam")
@@ -270,7 +288,6 @@ elif basis_vraag == "Ja":
         
         submitted = st.form_submit_button("Bevestig Aanmelding")
 
-    # LOGICA BUITEN FORM
     if submitted:
         if not vn or not an or not email:
             st.error("Vul alle velden in.")
@@ -307,7 +324,6 @@ elif basis_vraag == "Ja":
             except Exception as e: 
                 st.error(f"Fout: {e}")
 
-    # RESULTAAT WEERGAVE
     if st.session_state.submission_success:
         data = st.session_state.success_data
         st.success(f"✅ Bedankt {data['vn']}! Je staat op de lijst voor **{data['msg_k']}**. Tot **{datum_zonder_nul}** (aanvang **{data['msg_t'].strftime('%H:%M')}** bij **[{data['msg_l']}]({data['msg_u']})**).")
@@ -325,13 +341,11 @@ elif basis_vraag == "Ja":
 
 st.markdown("---")
 st.markdown("### 🙋 Vragen?")
-# TEKST AANGEPAST
-st.write(f"Heb je vragen of lukt het aanmelden niet? Stuur ons gerust een mailtje ({CONTACT_EMAIL_GROUP}).")
+st.write(f"Heb je vragen of lukt het aanmelden niet? Stuur ons gerust een mailtje ({CONTACT_EMAIL}).")
 
-mailto = f"mailto:{CONTACT_EMAIL_GROUP}?subject={urllib.parse.quote(f'Vraag lezing {maand_naam} - {SPEAKER_NAME}')}"
+mailto = f"mailto:{CONTACT_EMAIL}?subject={urllib.parse.quote(f'Vraag lezing {maand_naam} - {SPEAKER_NAME}')}"
 
-# HOVER TITLE TOEGEVOEGD
 st.markdown(f'''<a href="{mailto}" target="_blank" style="text-decoration:none;">
-<button title="{CONTACT_EMAIL_GROUP}" style="background-color:#6c757d;color:white;border:none;padding:8px 16px;border-radius:5px;cursor:pointer;font-size:16px;">
+<button title="{CONTACT_EMAIL}" style="background-color:#6c757d;color:white;border:none;padding:8px 16px;border-radius:5px;cursor:pointer;font-size:16px;">
 📧 E-mail ons
 </button></a>''', unsafe_allow_html=True)
