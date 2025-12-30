@@ -279,14 +279,14 @@ elif basis_vraag == "Ja":
         if att_type == "Fysiek aanwezig":
             join_din = st.radio("Eet je vooraf mee?", [f"Ja, diner + lezing (start {TIME_DINNER.strftime('%H:%M')})", f"Nee, alleen lezing (start {TIME_LECTURE.strftime('%H:%M')})"])
         
-        submitted = st.form_submit_button("Bevestig Aanmelding")
+        # AANPASSING HIER: kleine letter 'a'
+        submitted = st.form_submit_button("Bevestig aanmelding")
 
     if submitted:
         if not vn or not an or not email:
             st.error("Vul alle velden in.")
         else:
-            # --- NIEUWE STATUS INDICATOR ---
-            # Dit voorkomt dat mensen denken dat er niets gebeurt
+            # --- STATUS INDICATOR ---
             with st.status("Bezig met verwerken...", expanded=True) as status:
                 st.write("Gegevens opslaan in Google Sheets...")
                 try:
