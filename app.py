@@ -228,7 +228,7 @@ invite_title = f"🇪🇺 Studiegroep {maand_emoji} {maand_naam.capitalize()} {E
 
 st.title(f"🇪🇺 Studiegroep {maand_emoji} {maand_naam.capitalize()} {EVENT_DATE.year}")
 st.markdown(f"## {SPEAKER_NAME}")
-st.markdown(f"*{SPEAKER_ROLE}*")
+st.markdown(f"{SPEAKER_ROLE}")
 if EVENT_IMAGE: st.image(EVENT_IMAGE, use_container_width=True)
 st.write(SPEAKER_BIO)
 if SPEAKER_LINKEDIN: st.link_button("👔 LinkedIn profiel", SPEAKER_LINKEDIN)
