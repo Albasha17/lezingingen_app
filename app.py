@@ -21,11 +21,9 @@ def load_config():
     client = gspread.authorize(creds)
     
     try:
-        # We gebruiken de URL, dat is het meest robuust
         if "docs.google.com" in SPREADSHEET_URL:
             sh = client.open_by_url(SPREADSHEET_URL)
         else:
-            # Fallback op naam
             sh = client.open("EU_Lezingen_Master")
 
         ws = sh.worksheet("Config")
@@ -50,7 +48,7 @@ SPEAKER_BIO = conf.get("SPEAKER_BIO", "")
 SPEAKER_LINKEDIN = conf.get("SPEAKER_LINKEDIN", "")
 EVENT_IMAGE = conf.get("EVENT_IMAGE", "")
 
-# HIER STAAT HET EMAILADRES DAT ONDERAAN DE PAGINA KOMT
+# CONTACT EMAIL
 CONTACT_EMAIL = "eustudiegroep@gmail.com"
 
 try:
@@ -146,13 +144,8 @@ def send_confirmation_email(to_email, name, attend_type, dinner_choice, full_sub
         safe_to_email = force_ascii(to_email)
         
         msg = MIMEMultipart("mixed")
-        
-        # Afzender: EU Studiegroep <eustudiegroep@gmail.com>
         msg['From'] = formataddr(("EU Studiegroep", smtp_sender))
-        
-        # Reply-To: eustudiegroep@gmail.com
         msg.add_header('Reply-To', CONTACT_EMAIL)
-        
         msg['To'] = safe_to_email
         msg['Subject'] = force_ascii(full_subject_line)
 
@@ -278,74 +271,4 @@ elif basis_vraag == "Ja":
     att_type = st.radio("Hoe wil je de lezing bijwonen?", ["Fysiek aanwezig", "Online (Videolink)"])
     
     with st.form("registration_form"):
-        c1, c2 = st.columns(2)
-        with c1: vn = st.text_input("Voornaam")
-        with c2: an = st.text_input("Achternaam")
-        email = st.text_input("Emailadres (voor invite/videolink)", placeholder="jouw@email.nl")
-        join_din = "Nee (Online)"
-        if att_type == "Fysiek aanwezig":
-            join_din = st.radio("Eet je vooraf mee?", [f"Ja, diner + lezing (start {TIME_DINNER.strftime('%H:%M')})", f"Nee, alleen lezing (start {TIME_LECTURE.strftime('%H:%M')})"])
-        
-        submitted = st.form_submit_button("Bevestig Aanmelding")
-
-    if submitted:
-        if not vn or not an or not email:
-            st.error("Vul alle velden in.")
-        else:
-            try:
-                save_to_sheet(f"{vn} {an}", email, att_type, join_din)
-                
-                cal_loc = LINK_VIDEO if "Online" in att_type else f"{LOC_LECTURE_NAME}, {LOC_LECTURE_ADDR}"
-                cal_desc = f"Spreker: {SPEAKER_NAME}\n{SPEAKER_BIO}"
-                if "Online" in att_type: msg_k, msg_l, msg_u, msg_t = "de online lezing", "Google Meet", LINK_VIDEO, TIME_LECTURE
-                elif "Ja" in join_din: msg_k, msg_l, msg_u, msg_t = "diner en lezing", LOC_DINNER_NAME, MAPS_DINNER, TIME_DINNER
-                else: msg_k, msg_l, msg_u, msg_t = "alleen de lezing", LOC_LECTURE_NAME, MAPS_LECTURE, TIME_LECTURE
-                
-                g_url = create_google_cal_link(invite_title, msg_t, TIME_END, cal_loc, cal_desc)
-                i_dat = create_ics_content(invite_title, msg_t, TIME_END, cal_loc, cal_desc)
-                
-                st.session_state.submission_success = True
-                st.session_state.success_data = {
-                    "vn": vn,
-                    "msg_k": msg_k,
-                    "msg_t": msg_t,
-                    "msg_l": msg_l,
-                    "msg_u": msg_u,
-                    "g_url": g_url,
-                    "i_dat": i_dat,
-                    "email_sent": False
-                }
-
-                if "@" in email:
-                    if send_confirmation_email(email, vn, att_type, join_din, f"EU Studiegroep {maand_naam.capitalize()} {EVENT_DATE.year} Bevestiging", g_url, i_dat):
-                        st.session_state.success_data["email_sent"] = True
-                        st.session_state.success_data["email_addr"] = email
-
-            except Exception as e: 
-                st.error(f"Fout: {e}")
-
-    if st.session_state.submission_success:
-        data = st.session_state.success_data
-        st.success(f"✅ Bedankt {data['vn']}! Je staat op de lijst voor **{data['msg_k']}**. Tot **{datum_zonder_nul}** (aanvang **{data['msg_t'].strftime('%H:%M')}** bij **[{data['msg_l']}]({data['msg_u']})**).")
-        
-        if data.get("email_sent"):
-            st.info(f"📧 Bevestiging + Agenda-invite verstuurd naar {data['email_addr']}")
-        
-        st.divider()
-        st.markdown("### 📅 Zet direct in je agenda")
-        c_g, c_i = st.columns(2)
-        with c_g: 
-            st.markdown(f'''<a href="{data['g_url']}" target="_blank"><button style="width:100%; background-color:#4285F4; color:white; border:none; padding:10px; border-radius:5px; font-weight:bold; cursor:pointer;">Google Agenda ↗</button></a>''', unsafe_allow_html=True)
-        with c_i: 
-            st.download_button("Download Outlook / iCal 📥", data['i_dat'], "lezing.ics", "text/calendar", use_container_width=True)
-
-st.markdown("---")
-st.markdown("### 🙋 Vragen?")
-st.write(f"Heb je vragen of lukt het aanmelden niet? Stuur ons gerust een mailtje ({CONTACT_EMAIL}).")
-
-mailto = f"mailto:{CONTACT_EMAIL}?subject={urllib.parse.quote(f'Vraag lezing {maand_naam} - {SPEAKER_NAME}')}"
-
-st.markdown(f'''<a href="{mailto}" target="_blank" style="text-decoration:none;">
-<button title="{CONTACT_EMAIL}" style="background-color:#6c757d;color:white;border:none;padding:8px 16px;border-radius:5px;cursor:pointer;font-size:16px;">
-📧 E-mail ons
-</button></a>''', unsafe_allow_html=True)
+        c1, c2 = st.columns
