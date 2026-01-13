@@ -242,7 +242,7 @@ if LINK_PAYMENT: st.link_button("💳 Betaalverzoek openen", LINK_PAYMENT)
 
 st.divider()
 st.markdown("### 📝 Aanmelden")
-basis_vraag = st.radio(f"Wil je de lezing op {datum_zonder_nul} (fysiek/online) bijwonen?", ["Selecteer...", "Ja", "Nee"], index=0)
+basis_vraag = st.radio(f"Wil je de lezing op **{datum_zonder_nul}** (fysiek/online) bijwonen?", ["Selecteer...", "Ja", "Nee"], index=0)
 
 if 'submission_success' not in st.session_state:
     st.session_state.submission_success = False
