@@ -129,10 +129,11 @@ def force_ascii(text):
     text = unicodedata.normalize('NFKD', text)
     return text.encode('ascii', 'ignore').decode('ascii').strip()
 
-# --- CALENDAR API FUNCTIE (MET PRIVACY FIX) ---
-def manage_calendar_event(user_email, user_name, title, start_dt, end_dt, location, description):
+# --- CALENDAR API FUNCTIE ---
+def manage_calendar_event(user_email, user_name, title, start_dt, end_dt, location, description, search_query):
     """
-    Beheert het agenda-event en waarborgt privacy (gastenlijst verborgen).
+    Beheert het agenda-event en waarborgt privacy.
+    search_query is nodig om diner en lezing uit elkaar te houden (bijv. "Diner" of "Lezing").
     """
     try:
         creds_dict = st.secrets["gcp_service_account"]
@@ -142,16 +143,17 @@ def manage_calendar_event(user_email, user_name, title, start_dt, end_dt, locati
         service = build('calendar', 'v3', credentials=creds)
         calendar_id = CONTACT_EMAIL 
         
-        time_min = start_dt.isoformat() + 'Z' 
-        search_min = (start_dt - timedelta(hours=1)).isoformat()
-        search_max = (end_dt + timedelta(hours=1)).isoformat()
+        # Zoekrange (ruim nemen om te zorgen dat we hem vinden)
+        time_min = (start_dt - timedelta(minutes=15)).isoformat() + 'Z' 
+        time_max = (end_dt + timedelta(minutes=15)).isoformat() + 'Z'
         
+        # We zoeken specifiek op de titel (search_query) zodat we Diner en Lezing niet door elkaar halen
         events_result = service.events().list(
             calendarId=calendar_id, 
-            timeMin=search_min, 
-            timeMax=search_max, 
+            timeMin=time_min, 
+            timeMax=time_max, 
             singleEvents=True,
-            q=SPEAKER_NAME
+            q=search_query # CRUCIAAL: Zoek op "Diner" of "Lezing"
         ).execute()
         events = events_result.get('items', [])
         
@@ -178,9 +180,7 @@ def manage_calendar_event(user_email, user_name, title, start_dt, end_dt, locati
                     'timeZone': 'Europe/Amsterdam',
                 },
                 'attendees': [],
-                # --- PRIVACY FIX ---
-                'guestsCanSeeOtherGuests': False, # Gasten zien elkaar NIET
-                # -------------------
+                'guestsCanSeeOtherGuests': False, # Privacy
             }
             created_event = service.events().insert(calendarId=calendar_id, body=event_body).execute()
             event_id = created_event['id']
@@ -194,9 +194,7 @@ def manage_calendar_event(user_email, user_name, title, start_dt, end_dt, locati
             
             patch_body = {
                 'attendees': current_attendees,
-                # --- PRIVACY FIX (OOK BIJ UPDATE) ---
                 'guestsCanSeeOtherGuests': False 
-                # ------------------------------------
             }
             
             service.events().patch(
@@ -210,7 +208,7 @@ def manage_calendar_event(user_email, user_name, title, start_dt, end_dt, locati
             return True
             
     except Exception as e:
-        st.error(f"Fout met Google Calendar Sync: {e}")
+        st.error(f"Fout met Google Calendar Sync ({search_query}): {e}")
         return False
 
 # --- WEB COMPONENT ---
@@ -249,7 +247,7 @@ def send_confirmation_email(to_email, name, attend_type, dinner_choice, full_sub
             <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; border: 1px solid #ddd; margin-bottom: 25px;">
                 <p style="margin: 0;">📝 <strong>Jouw keuze:</strong> {keuze_samenvatting}</p>
             </div>
-            <p><strong>Let op:</strong> Je ontvangt ook een automatische agenda-uitnodiging vanuit Google Calendar. Accepteer deze om updates (zoals de videolink) direct in je agenda te krijgen!</p>
+            <p><strong>Let op:</strong> Je ontvangt ook een automatische agenda-uitnodiging vanuit Google Calendar. <br>Eet je mee? Dan ontvang je <strong>twee</strong> losse uitnodigingen (Diner & Lezing).</p>
             <h3 style="margin-top: 0;">Programma</h3>
         """
         if is_online:
@@ -274,7 +272,7 @@ def send_confirmation_email(to_email, name, attend_type, dinner_choice, full_sub
         html_body += f"""<br><p>Tot dan!<br>Groet,<br><strong>EU Studiegroep</strong> 🇪🇺</p></body></html>"""
         
         msg_body = MIMEMultipart("alternative")
-        msg_body.attach(MIMEText(f"Beste {name},\n\nLeuk dat je erbij bent! Je ontvangt separaat een Google Calendar invite.\n\nZie HTML mail voor details.", 'plain', 'utf-8'))
+        msg_body.attach(MIMEText(f"Beste {name},\n\nLeuk dat je erbij bent! Je ontvangt separaat Google Calendar invites.\n\nZie HTML mail voor details.", 'plain', 'utf-8'))
         msg_body.attach(MIMEText(html_body, 'html', 'utf-8'))
         msg.attach(msg_body)
 
@@ -375,15 +373,32 @@ elif basis_vraag == "Ja":
                     save_to_sheet(f"{vn} {an}", email, att_type, join_din)
                     
                     cal_loc = LINK_VIDEO if "Online" in att_type else f"{LOC_LECTURE_NAME}, {LOC_LECTURE_ADDR}"
-                    cal_desc = f"Videolink: {LINK_VIDEO}\n\nSpreker: {SPEAKER_NAME}\n{SPEAKER_BIO}"
                     
+                    # Logica voor de email
                     if "Online" in att_type: msg_k, msg_l, msg_u = "de online lezing", "Google Meet", LINK_VIDEO
                     elif "Ja" in join_din: msg_k, msg_l, msg_u = "diner en lezing", LOC_DINNER_NAME, MAPS_DINNER
                     else: msg_k, msg_l, msg_u = "alleen de lezing", LOC_LECTURE_NAME, MAPS_LECTURE
                     
+                    # SYNC NAAR AGENDA VAN ORGANISATOR (GESPLITST)
                     if "@" in email:
                         st.write("Toevoegen aan Agenda Organisator...")
-                        manage_calendar_event(email, f"{vn} {an}", invite_title, TIME_LECTURE, TIME_END, cal_loc, cal_desc)
+                        
+                        # --- 1. HET LEZING EVENT (Voor Iedereen) ---
+                        title_lezing = f"🎤 Lezing: {SPEAKER_NAME}"
+                        desc_lezing = f"Spreker: {SPEAKER_NAME}\n{SPEAKER_BIO}\n\nVideolink: {LINK_VIDEO}"
+                        # Locatie is fysiek adres of online
+                        loc_lezing = f"{LOC_LECTURE_NAME}, {LOC_LECTURE_ADDR}"
+                        
+                        manage_calendar_event(email, f"{vn} {an}", title_lezing, TIME_LECTURE, TIME_END, loc_lezing, desc_lezing, "Lezing")
+                        
+                        # --- 2. HET DINER EVENT (Alleen als 'Ja' gekozen is) ---
+                        if "Ja" in join_din:
+                            title_diner = f"🍕 Diner: {SPEAKER_NAME}"
+                            desc_diner = f"Diner voorafgaand aan lezing {SPEAKER_NAME}.\nLocatie: {LOC_DINNER_NAME}"
+                            loc_diner = f"{LOC_DINNER_NAME}, {LOC_DINNER_ADDR}"
+                            
+                            # Diner stopt als lezing begint
+                            manage_calendar_event(email, f"{vn} {an}", title_diner, TIME_DINNER, TIME_LECTURE, loc_diner, desc_diner, "Diner")
 
                         st.write("Bevestigingsmail versturen...")
                         if send_confirmation_email(email, vn, att_type, join_din, f"EU Studiegroep {maand_naam.capitalize()} {EVENT_DATE.year} Bevestiging", "", None):
@@ -412,7 +427,7 @@ elif basis_vraag == "Ja":
         st.success(f"✅ Bedankt {data['vn']}! Je staat op de lijst voor **{data['msg_k']}**. Tot **{datum_zonder_nul}** (aanvang **{data['msg_t'].strftime('%H:%M')}** bij **[{data['msg_l']}]({data['msg_u']})**).")
         
         if data.get("email_sent"):
-            st.info(f"📧 Bevestigingsmail verstuurd naar {data['email_addr']}. \n\n📅 **Check je agenda:** Je hebt ook een Google Calendar uitnodiging ontvangen. Accepteer deze om updates direct te ontvangen!")
+            st.info(f"📧 Bevestigingsmail verstuurd naar {data['email_addr']}. \n\n📅 **Check je agenda:** Je hebt ook Google Calendar uitnodiging(en) ontvangen. Accepteer deze om updates direct te ontvangen!")
         
         st.divider()
 
