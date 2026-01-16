@@ -1,7 +1,9 @@
 import streamlit as st
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-from datetime import datetime
+from google.oauth2 import service_account # Nieuw voor Calendar API
+from googleapiclient.discovery import build # Nieuw voor Calendar API
+from datetime import datetime, timedelta
 import pytz
 import urllib.parse
 import smtplib
@@ -10,12 +12,17 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.utils import formataddr
 
-# --- BELANGRIJK: PLAK HIER DE URL VAN JE GOOGLE SHEET ---
+# --- BELANGRIJK: URL VAN JE GOOGLE SHEET ---
 SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1OAF5Y4TIVMUUM1xXzcRY2VpMw2dF9vPA5Z4NtZr2gTg/edit?gid=0#gid=0"
 
 # --- 1. CONFIGURATIE LADEN ---
 def load_config():
-    scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
+    # Scopes uitgebreid met Calendar
+    scope = [
+        'https://spreadsheets.google.com/feeds', 
+        'https://www.googleapis.com/auth/drive',
+        'https://www.googleapis.com/auth/calendar'
+    ]
     creds_dict = st.secrets["gcp_service_account"]
     creds = ServiceAccountCredentials.from_json_keyfile_dict(creds_dict, scope)
     client = gspread.authorize(creds)
@@ -48,7 +55,7 @@ SPEAKER_BIO = conf.get("SPEAKER_BIO", "")
 SPEAKER_LINKEDIN = conf.get("SPEAKER_LINKEDIN", "")
 EVENT_IMAGE = conf.get("EVENT_IMAGE", "")
 
-# CONTACT EMAIL
+# CONTACT EMAIL (DIT IS OOK DE AGENDA EIGENAAR)
 CONTACT_EMAIL = "eustudiegroep@gmail.com"
 
 try:
@@ -123,6 +130,94 @@ def force_ascii(text):
     text = unicodedata.normalize('NFKD', text)
     return text.encode('ascii', 'ignore').decode('ascii').strip()
 
+# --- NIEUW: CALENDAR API FUNCTIE ---
+def manage_calendar_event(user_email, user_name, title, start_dt, end_dt, location, description):
+    """
+    Zoekt of er al een event is op de organisator agenda. Zo niet, maakt hij hem aan.
+    Voegt vervolgens de gebruiker toe als attendee.
+    """
+    try:
+        # 1. Credentials specifiek voor Google API client laden
+        creds_dict = st.secrets["gcp_service_account"]
+        creds = service_account.Credentials.from_service_account_info(
+            creds_dict, scopes=['https://www.googleapis.com/auth/calendar']
+        )
+        service = build('calendar', 'v3', credentials=creds)
+        calendar_id = CONTACT_EMAIL # De agenda van eustudiegroep@gmail.com
+        
+        # 2. Zoeken naar bestaand event op deze dag
+        # We zoeken van start_dt tot end_dt
+        time_min = start_dt.isoformat() + 'Z' # UTC tijd vereist door API, maar we sturen offset mee in body
+        # Iets ruimere marge voor zoeken
+        search_min = (start_dt - timedelta(hours=1)).isoformat()
+        search_max = (end_dt + timedelta(hours=1)).isoformat()
+        
+        events_result = service.events().list(
+            calendarId=calendar_id, 
+            timeMin=search_min, 
+            timeMax=search_max, 
+            singleEvents=True,
+            q=SPEAKER_NAME # Zoek op naam spreker om zeker te zijn
+        ).execute()
+        events = events_result.get('items', [])
+        
+        event_id = None
+        current_attendees = []
+        
+        # 3. Bestaat het event al?
+        if events:
+            # Pak de eerste die matcht
+            event = events[0]
+            event_id = event['id']
+            current_attendees = event.get('attendees', [])
+            # st.write(f"DEBUG: Event gevonden: {event.get('summary')}")
+        else:
+            # 4. Niet gevonden -> Aanmaken
+            # st.write("DEBUG: Nieuw event aanmaken...")
+            event_body = {
+                'summary': title,
+                'location': location,
+                'description': description,
+                'start': {
+                    'dateTime': start_dt.isoformat(),
+                    'timeZone': 'Europe/Amsterdam',
+                },
+                'end': {
+                    'dateTime': end_dt.isoformat(),
+                    'timeZone': 'Europe/Amsterdam',
+                },
+                'attendees': [],
+            }
+            created_event = service.events().insert(calendarId=calendar_id, body=event_body).execute()
+            event_id = created_event['id']
+            current_attendees = []
+
+        # 5. Gebruiker toevoegen als hij er nog niet in staat
+        # Check of email al in lijst staat
+        already_added = any(a.get('email') == user_email for a in current_attendees)
+        
+        if not already_added:
+            current_attendees.append({'email': user_email, 'displayName': user_name})
+            
+            patch_body = {
+                'attendees': current_attendees
+            }
+            
+            # Update het event (sendUpdates='all' stuurt de uitnodiging)
+            service.events().patch(
+                calendarId=calendar_id, 
+                eventId=event_id, 
+                body=patch_body, 
+                sendUpdates='all'
+            ).execute()
+            return True # Succesvol toegevoegd
+        else:
+            return True # Stond er al in, ook prima
+            
+    except Exception as e:
+        st.error(f"Fout met Google Calendar Sync: {e}")
+        return False
+
 # --- WEB COMPONENT ---
 def render_program_card(emoji, title, clock_emoji, time_str, loc_name, loc_addr, map_url=None, is_video=False, time_suffix=""):
     with st.container(border=True):
@@ -133,7 +228,7 @@ def render_program_card(emoji, title, clock_emoji, time_str, loc_name, loc_addr,
         else:
             st.markdown(f"**📍 {loc_name}** ({loc_addr} · [Route]({map_url}))")
 
-# --- EMAIL FUNCTIE ---
+# --- EMAIL FUNCTIE (SMTP) ---
 def send_confirmation_email(to_email, name, attend_type, dinner_choice, full_subject_line, google_link, ics_content):
     try:
         raw_sender = st.secrets["email"]["sender_email"]
@@ -159,6 +254,7 @@ def send_confirmation_email(to_email, name, attend_type, dinner_choice, full_sub
             <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; border: 1px solid #ddd; margin-bottom: 25px;">
                 <p style="margin: 0;">📝 <strong>Jouw keuze:</strong> {keuze_samenvatting}</p>
             </div>
+            <p><strong>Let op:</strong> Je ontvangt ook een automatische agenda-uitnodiging vanuit Google Calendar. Accepteer deze om updates (zoals de videolink) direct in je agenda te krijgen!</p>
             <h3 style="margin-top: 0;">Programma</h3>
         """
         if is_online:
@@ -180,19 +276,12 @@ def send_confirmation_email(to_email, name, attend_type, dinner_choice, full_sub
                 <p style="margin: 0;">📍 <strong>{LOC_LECTURE_NAME}</strong> ({LOC_LECTURE_ADDR} · <a href="{MAPS_LECTURE}" target="_blank" style="color: #4285F4; text-decoration: none;">Route</a>)</p>
             </div>"""
 
-        html_body += f"""<br><a href="{google_link}" target="_blank" style="background-color:#4285F4; color:white; padding:10px 15px; text-decoration:none; border-radius:5px; font-weight:bold;">📅 Zet in Google Agenda</a>
-            <br><br><p>De officiële agenda-uitnodiging (voor Outlook/Apple) vind je ook als bijlage bij deze mail.</p>
-            <p>Tot dan!<br>Groet,<br><strong>EU Studiegroep</strong> 🇪🇺</p></body></html>"""
+        html_body += f"""<br><p>Tot dan!<br>Groet,<br><strong>EU Studiegroep</strong> 🇪🇺</p></body></html>"""
         
         msg_body = MIMEMultipart("alternative")
-        msg_body.attach(MIMEText(f"Beste {name},\n\nLeuk dat je erbij bent! Jouw keuze: {keuze_samenvatting}\n\nZie HTML mail voor details.", 'plain', 'utf-8'))
+        msg_body.attach(MIMEText(f"Beste {name},\n\nLeuk dat je erbij bent! Je ontvangt separaat een Google Calendar invite.\n\nZie HTML mail voor details.", 'plain', 'utf-8'))
         msg_body.attach(MIMEText(html_body, 'html', 'utf-8'))
         msg.attach(msg_body)
-
-        if ics_content:
-            part = MIMEText(ics_content, 'calendar; method=REQUEST', 'utf-8')
-            part.add_header('Content-Disposition', 'attachment', filename='invite.ics')
-            msg.attach(part)
 
         server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
         server.login(smtp_sender, smtp_password)
@@ -202,14 +291,6 @@ def send_confirmation_email(to_email, name, attend_type, dinner_choice, full_sub
     except Exception as e:
         st.error(f"Fout bij verzenden email: {e}")
         return False
-
-def create_google_cal_link(title, start_dt, end_dt, location, description):
-    params = {"action": "TEMPLATE", "text": title, "dates": f"{start_dt.strftime('%Y%m%dT%H%M%S')}/{end_dt.strftime('%Y%m%dT%H%M%S')}", "details": description, "location": location, "ctz": "Europe/Amsterdam"}
-    return f"https://calendar.google.com/calendar/render?{urllib.parse.urlencode(params)}"
-
-def create_ics_content(title, start_dt, end_dt, location, description):
-    fmt = "%Y%m%dT%H%M%S"
-    return f"BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//LezingApp//NL\nMETHOD:REQUEST\nBEGIN:VEVENT\nUID:{datetime.now().strftime(fmt)}@lezingapp\nDTSTAMP:{datetime.now().strftime(fmt)}\nDTSTART:{start_dt.strftime(fmt)}\nDTEND:{end_dt.strftime(fmt)}\nSUMMARY:{title}\nDESCRIPTION:{description.replace(chr(10), '\\n')}\nLOCATION:{location}\nSTATUS:CONFIRMED\nEND:VEVENT\nEND:VCALENDAR"
 
 # --- 3. UI OPBOUW ---
 st.set_page_config(page_title="Aanmelding Lezing", page_icon="🇪🇺", initial_sidebar_state="collapsed")
@@ -285,44 +366,42 @@ elif basis_vraag == "Ja":
         if not vn or not an or not email:
             st.error("Vul alle velden in.")
         else:
-            # --- STATUS INDICATOR ---
             with st.status("Bezig met verwerken...", expanded=True) as status:
                 st.write("Gegevens opslaan in Google Sheets...")
                 try:
                     save_to_sheet(f"{vn} {an}", email, att_type, join_din)
                     
                     cal_loc = LINK_VIDEO if "Online" in att_type else f"{LOC_LECTURE_NAME}, {LOC_LECTURE_ADDR}"
-                    
-                    # --- HIER IS DE AANPASSING ---
-                    # Videolink wordt nu ALTIJD in de beschrijving gezet
                     cal_desc = f"Videolink: {LINK_VIDEO}\n\nSpreker: {SPEAKER_NAME}\n{SPEAKER_BIO}"
                     
-                    if "Online" in att_type: msg_k, msg_l, msg_u, msg_t = "de online lezing", "Google Meet", LINK_VIDEO, TIME_LECTURE
-                    elif "Ja" in join_din: msg_k, msg_l, msg_u, msg_t = "diner en lezing", LOC_DINNER_NAME, MAPS_DINNER, TIME_DINNER
-                    else: msg_k, msg_l, msg_u, msg_t = "alleen de lezing", LOC_LECTURE_NAME, MAPS_LECTURE, TIME_LECTURE
+                    # Logica voor de email
+                    if "Online" in att_type: msg_k, msg_l, msg_u = "de online lezing", "Google Meet", LINK_VIDEO
+                    elif "Ja" in join_din: msg_k, msg_l, msg_u = "diner en lezing", LOC_DINNER_NAME, MAPS_DINNER
+                    else: msg_k, msg_l, msg_u = "alleen de lezing", LOC_LECTURE_NAME, MAPS_LECTURE
                     
-                    st.write("Agenda items genereren...")
-                    g_url = create_google_cal_link(invite_title, msg_t, TIME_END, cal_loc, cal_desc)
-                    i_dat = create_ics_content(invite_title, msg_t, TIME_END, cal_loc, cal_desc)
+                    # SYNC NAAR AGENDA VAN ORGANISATOR
+                    if "@" in email:
+                        st.write("Toevoegen aan Agenda Organisator...")
+                        # We gebruiken de Lezing tijd voor het master-event
+                        manage_calendar_event(email, f"{vn} {an}", invite_title, TIME_LECTURE, TIME_END, cal_loc, cal_desc)
+
+                        st.write("Bevestigingsmail versturen...")
+                        # Geen ICS bestand meer nodig, Google stuurt de invite!
+                        if send_confirmation_email(email, vn, att_type, join_din, f"EU Studiegroep {maand_naam.capitalize()} {EVENT_DATE.year} Bevestiging", "", None):
+                            st.session_state.success_data["email_sent"] = True
+                            st.session_state.success_data["email_addr"] = email
                     
                     st.session_state.submission_success = True
                     st.session_state.success_data = {
                         "vn": vn,
                         "msg_k": msg_k,
-                        "msg_t": msg_t,
+                        "msg_t": TIME_LECTURE,
                         "msg_l": msg_l,
                         "msg_u": msg_u,
-                        "g_url": g_url,
-                        "i_dat": i_dat,
-                        "email_sent": False
+                        "email_sent": st.session_state.success_data.get("email_sent", False),
+                        "email_addr": email
                     }
 
-                    if "@" in email:
-                        st.write("Bevestigingsmail versturen...")
-                        if send_confirmation_email(email, vn, att_type, join_din, f"EU Studiegroep {maand_naam.capitalize()} {EVENT_DATE.year} Bevestiging", g_url, i_dat):
-                            st.session_state.success_data["email_sent"] = True
-                            st.session_state.success_data["email_addr"] = email
-                    
                     status.update(label="Aanmelding geslaagd!", state="complete", expanded=False)
 
                 except Exception as e: 
@@ -334,15 +413,9 @@ elif basis_vraag == "Ja":
         st.success(f"✅ Bedankt {data['vn']}! Je staat op de lijst voor **{data['msg_k']}**. Tot **{datum_zonder_nul}** (aanvang **{data['msg_t'].strftime('%H:%M')}** bij **[{data['msg_l']}]({data['msg_u']})**).")
         
         if data.get("email_sent"):
-            st.info(f"📧 Bevestiging + Agenda-invite verstuurd naar {data['email_addr']}")
+            st.info(f"📧 Bevestigingsmail verstuurd naar {data['email_addr']}. \n\n📅 **Check je agenda:** Je hebt ook een Google Calendar uitnodiging ontvangen. Accepteer deze om updates direct te ontvangen!")
         
         st.divider()
-        st.markdown("### 📅 Zet direct in je agenda")
-        c_g, c_i = st.columns(2)
-        with c_g: 
-            st.markdown(f'''<a href="{data['g_url']}" target="_blank"><button style="width:100%; background-color:#4285F4; color:white; border:none; padding:10px; border-radius:5px; font-weight:bold; cursor:pointer;">Google Agenda ↗</button></a>''', unsafe_allow_html=True)
-        with c_i: 
-            st.download_button("Download Outlook / iCal 📥", data['i_dat'], "lezing.ics", "text/calendar", use_container_width=True)
 
 st.markdown("---")
 st.markdown("### 🙋 Vragen?")
