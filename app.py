@@ -1,8 +1,8 @@
 import streamlit as st
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
-from google.oauth2 import service_account # Nieuw voor Calendar API
-from googleapiclient.discovery import build # Nieuw voor Calendar API
+from google.oauth2 import service_account
+from googleapiclient.discovery import build
 from datetime import datetime, timedelta
 import pytz
 import urllib.parse
@@ -12,12 +12,11 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 from email.utils import formataddr
 
-# --- BELANGRIJK: URL VAN JE GOOGLE SHEET ---
+# --- BELANGRIJK: PLAK HIER DE URL VAN JE GOOGLE SHEET ---
 SPREADSHEET_URL = "https://docs.google.com/spreadsheets/d/1OAF5Y4TIVMUUM1xXzcRY2VpMw2dF9vPA5Z4NtZr2gTg/edit?gid=0#gid=0"
 
 # --- 1. CONFIGURATIE LADEN ---
 def load_config():
-    # Scopes uitgebreid met Calendar
     scope = [
         'https://spreadsheets.google.com/feeds', 
         'https://www.googleapis.com/auth/drive',
@@ -55,7 +54,7 @@ SPEAKER_BIO = conf.get("SPEAKER_BIO", "")
 SPEAKER_LINKEDIN = conf.get("SPEAKER_LINKEDIN", "")
 EVENT_IMAGE = conf.get("EVENT_IMAGE", "")
 
-# CONTACT EMAIL (DIT IS OOK DE AGENDA EIGENAAR)
+# CONTACT EMAIL
 CONTACT_EMAIL = "eustudiegroep@gmail.com"
 
 try:
@@ -130,25 +129,20 @@ def force_ascii(text):
     text = unicodedata.normalize('NFKD', text)
     return text.encode('ascii', 'ignore').decode('ascii').strip()
 
-# --- NIEUW: CALENDAR API FUNCTIE ---
+# --- CALENDAR API FUNCTIE (MET PRIVACY FIX) ---
 def manage_calendar_event(user_email, user_name, title, start_dt, end_dt, location, description):
     """
-    Zoekt of er al een event is op de organisator agenda. Zo niet, maakt hij hem aan.
-    Voegt vervolgens de gebruiker toe als attendee.
+    Beheert het agenda-event en waarborgt privacy (gastenlijst verborgen).
     """
     try:
-        # 1. Credentials specifiek voor Google API client laden
         creds_dict = st.secrets["gcp_service_account"]
         creds = service_account.Credentials.from_service_account_info(
             creds_dict, scopes=['https://www.googleapis.com/auth/calendar']
         )
         service = build('calendar', 'v3', credentials=creds)
-        calendar_id = CONTACT_EMAIL # De agenda van eustudiegroep@gmail.com
+        calendar_id = CONTACT_EMAIL 
         
-        # 2. Zoeken naar bestaand event op deze dag
-        # We zoeken van start_dt tot end_dt
-        time_min = start_dt.isoformat() + 'Z' # UTC tijd vereist door API, maar we sturen offset mee in body
-        # Iets ruimere marge voor zoeken
+        time_min = start_dt.isoformat() + 'Z' 
         search_min = (start_dt - timedelta(hours=1)).isoformat()
         search_max = (end_dt + timedelta(hours=1)).isoformat()
         
@@ -157,23 +151,20 @@ def manage_calendar_event(user_email, user_name, title, start_dt, end_dt, locati
             timeMin=search_min, 
             timeMax=search_max, 
             singleEvents=True,
-            q=SPEAKER_NAME # Zoek op naam spreker om zeker te zijn
+            q=SPEAKER_NAME
         ).execute()
         events = events_result.get('items', [])
         
         event_id = None
         current_attendees = []
         
-        # 3. Bestaat het event al?
         if events:
-            # Pak de eerste die matcht
+            # Event bestaat al
             event = events[0]
             event_id = event['id']
             current_attendees = event.get('attendees', [])
-            # st.write(f"DEBUG: Event gevonden: {event.get('summary')}")
         else:
-            # 4. Niet gevonden -> Aanmaken
-            # st.write("DEBUG: Nieuw event aanmaken...")
+            # Nieuw event aanmaken
             event_body = {
                 'summary': title,
                 'location': location,
@@ -187,32 +178,36 @@ def manage_calendar_event(user_email, user_name, title, start_dt, end_dt, locati
                     'timeZone': 'Europe/Amsterdam',
                 },
                 'attendees': [],
+                # --- PRIVACY FIX ---
+                'guestsCanSeeOtherGuests': False, # Gasten zien elkaar NIET
+                # -------------------
             }
             created_event = service.events().insert(calendarId=calendar_id, body=event_body).execute()
             event_id = created_event['id']
             current_attendees = []
 
-        # 5. Gebruiker toevoegen als hij er nog niet in staat
-        # Check of email al in lijst staat
+        # Gebruiker toevoegen
         already_added = any(a.get('email') == user_email for a in current_attendees)
         
         if not already_added:
             current_attendees.append({'email': user_email, 'displayName': user_name})
             
             patch_body = {
-                'attendees': current_attendees
+                'attendees': current_attendees,
+                # --- PRIVACY FIX (OOK BIJ UPDATE) ---
+                'guestsCanSeeOtherGuests': False 
+                # ------------------------------------
             }
             
-            # Update het event (sendUpdates='all' stuurt de uitnodiging)
             service.events().patch(
                 calendarId=calendar_id, 
                 eventId=event_id, 
                 body=patch_body, 
                 sendUpdates='all'
             ).execute()
-            return True # Succesvol toegevoegd
+            return True
         else:
-            return True # Stond er al in, ook prima
+            return True
             
     except Exception as e:
         st.error(f"Fout met Google Calendar Sync: {e}")
@@ -291,6 +286,14 @@ def send_confirmation_email(to_email, name, attend_type, dinner_choice, full_sub
     except Exception as e:
         st.error(f"Fout bij verzenden email: {e}")
         return False
+
+def create_google_cal_link(title, start_dt, end_dt, location, description):
+    params = {"action": "TEMPLATE", "text": title, "dates": f"{start_dt.strftime('%Y%m%dT%H%M%S')}/{end_dt.strftime('%Y%m%dT%H%M%S')}", "details": description, "location": location, "ctz": "Europe/Amsterdam"}
+    return f"https://calendar.google.com/calendar/render?{urllib.parse.urlencode(params)}"
+
+def create_ics_content(title, start_dt, end_dt, location, description):
+    fmt = "%Y%m%dT%H%M%S"
+    return f"BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//LezingApp//NL\nMETHOD:REQUEST\nBEGIN:VEVENT\nUID:{datetime.now().strftime(fmt)}@lezingapp\nDTSTAMP:{datetime.now().strftime(fmt)}\nDTSTART:{start_dt.strftime(fmt)}\nDTEND:{end_dt.strftime(fmt)}\nSUMMARY:{title}\nDESCRIPTION:{description.replace(chr(10), '\\n')}\nLOCATION:{location}\nSTATUS:CONFIRMED\nEND:VEVENT\nEND:VCALENDAR"
 
 # --- 3. UI OPBOUW ---
 st.set_page_config(page_title="Aanmelding Lezing", page_icon="🇪🇺", initial_sidebar_state="collapsed")
@@ -374,19 +377,15 @@ elif basis_vraag == "Ja":
                     cal_loc = LINK_VIDEO if "Online" in att_type else f"{LOC_LECTURE_NAME}, {LOC_LECTURE_ADDR}"
                     cal_desc = f"Videolink: {LINK_VIDEO}\n\nSpreker: {SPEAKER_NAME}\n{SPEAKER_BIO}"
                     
-                    # Logica voor de email
                     if "Online" in att_type: msg_k, msg_l, msg_u = "de online lezing", "Google Meet", LINK_VIDEO
                     elif "Ja" in join_din: msg_k, msg_l, msg_u = "diner en lezing", LOC_DINNER_NAME, MAPS_DINNER
                     else: msg_k, msg_l, msg_u = "alleen de lezing", LOC_LECTURE_NAME, MAPS_LECTURE
                     
-                    # SYNC NAAR AGENDA VAN ORGANISATOR
                     if "@" in email:
                         st.write("Toevoegen aan Agenda Organisator...")
-                        # We gebruiken de Lezing tijd voor het master-event
                         manage_calendar_event(email, f"{vn} {an}", invite_title, TIME_LECTURE, TIME_END, cal_loc, cal_desc)
 
                         st.write("Bevestigingsmail versturen...")
-                        # Geen ICS bestand meer nodig, Google stuurt de invite!
                         if send_confirmation_email(email, vn, att_type, join_din, f"EU Studiegroep {maand_naam.capitalize()} {EVENT_DATE.year} Bevestiging", "", None):
                             st.session_state.success_data["email_sent"] = True
                             st.session_state.success_data["email_addr"] = email
@@ -401,7 +400,7 @@ elif basis_vraag == "Ja":
                         "email_sent": st.session_state.success_data.get("email_sent", False),
                         "email_addr": email
                     }
-
+                    
                     status.update(label="Aanmelding geslaagd!", state="complete", expanded=False)
 
                 except Exception as e: 
