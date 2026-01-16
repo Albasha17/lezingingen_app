@@ -279,7 +279,6 @@ elif basis_vraag == "Ja":
         if att_type == "Fysiek aanwezig":
             join_din = st.radio("Eet je vooraf mee?", [f"Ja, diner + lezing (start {TIME_DINNER.strftime('%H:%M')})", f"Nee, alleen lezing (start {TIME_LECTURE.strftime('%H:%M')})"])
         
-        # AANPASSING HIER: kleine letter 'a'
         submitted = st.form_submit_button("Bevestig aanmelding")
 
     if submitted:
@@ -293,7 +292,11 @@ elif basis_vraag == "Ja":
                     save_to_sheet(f"{vn} {an}", email, att_type, join_din)
                     
                     cal_loc = LINK_VIDEO if "Online" in att_type else f"{LOC_LECTURE_NAME}, {LOC_LECTURE_ADDR}"
-                    cal_desc = f"Spreker: {SPEAKER_NAME}\n{SPEAKER_BIO}"
+                    
+                    # --- HIER IS DE AANPASSING ---
+                    # Videolink wordt nu ALTIJD in de beschrijving gezet
+                    cal_desc = f"Videolink: {LINK_VIDEO}\n\nSpreker: {SPEAKER_NAME}\n{SPEAKER_BIO}"
+                    
                     if "Online" in att_type: msg_k, msg_l, msg_u, msg_t = "de online lezing", "Google Meet", LINK_VIDEO, TIME_LECTURE
                     elif "Ja" in join_din: msg_k, msg_l, msg_u, msg_t = "diner en lezing", LOC_DINNER_NAME, MAPS_DINNER, TIME_DINNER
                     else: msg_k, msg_l, msg_u, msg_t = "alleen de lezing", LOC_LECTURE_NAME, MAPS_LECTURE, TIME_LECTURE
