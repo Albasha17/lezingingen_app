@@ -129,8 +129,12 @@ def force_ascii(text):
     text = unicodedata.normalize('NFKD', text)
     return text.encode('ascii', 'ignore').decode('ascii').strip()
 
-# --- CALENDAR API FUNCTIE ---
-def manage_calendar_event(user_email, user_name, title, start_dt, end_dt, location, description, search_query):
+# --- CALENDAR API FUNCTIE (AANGEPAST: Geen invites meer ivm Google blokkade) ---
+def manage_calendar_event_organizer_only(title, start_dt, end_dt, location, description, search_query):
+    """
+    Maakt/Update het event in de agenda van de ORGANISATOR.
+    Nodigt GEEN gasten uit om 'Domain-Wide Delegation' errors te voorkomen.
+    """
     try:
         creds_dict = st.secrets["gcp_service_account"]
         creds = service_account.Credentials.from_service_account_info(
@@ -151,53 +155,30 @@ def manage_calendar_event(user_email, user_name, title, start_dt, end_dt, locati
         ).execute()
         events = events_result.get('items', [])
         
-        event_id = None
-        current_attendees = []
-        
-        if events:
-            event = events[0]
-            event_id = event['id']
-            current_attendees = event.get('attendees', [])
-        else:
-            event_body = {
-                'summary': title,
-                'location': location,
-                'description': description,
-                'start': {
-                    'dateTime': start_dt.isoformat(),
-                    'timeZone': 'Europe/Amsterdam',
-                },
-                'end': {
-                    'dateTime': end_dt.isoformat(),
-                    'timeZone': 'Europe/Amsterdam',
-                },
-                'attendees': [],
-                'guestsCanSeeOtherGuests': False,
-            }
-            created_event = service.events().insert(calendarId=calendar_id, body=event_body).execute()
-            event_id = created_event['id']
-            current_attendees = []
+        event_body = {
+            'summary': title,
+            'location': location,
+            'description': description,
+            'start': {
+                'dateTime': start_dt.isoformat(),
+                'timeZone': 'Europe/Amsterdam',
+            },
+            'end': {
+                'dateTime': end_dt.isoformat(),
+                'timeZone': 'Europe/Amsterdam',
+            },
+            # GEEN ATTENDEES LIJST MEER = GEEN ERROR
+        }
 
-        already_added = any(a.get('email') == user_email for a in current_attendees)
-        
-        if not already_added:
-            current_attendees.append({'email': user_email, 'displayName': user_name})
-            
-            patch_body = {
-                'attendees': current_attendees,
-                'guestsCanSeeOtherGuests': False 
-            }
-            
-            service.events().patch(
-                calendarId=calendar_id, 
-                eventId=event_id, 
-                body=patch_body, 
-                sendUpdates='all'
-            ).execute()
-            return True
+        if events:
+            # Update bestaand event
+            event_id = events[0]['id']
+            service.events().update(calendarId=calendar_id, eventId=event_id, body=event_body).execute()
         else:
-            return True
+            # Nieuw event
+            service.events().insert(calendarId=calendar_id, body=event_body).execute()
             
+        return True
     except Exception as e:
         st.error(f"Fout met Google Calendar Sync ({search_query}): {e}")
         return False
@@ -238,7 +219,7 @@ def send_confirmation_email(to_email, name, attend_type, dinner_choice, full_sub
             <div style="background-color: #f9f9f9; padding: 15px; border-radius: 5px; border: 1px solid #ddd; margin-bottom: 25px;">
                 <p style="margin: 0;">📝 <strong>Jouw keuze:</strong> {keuze_samenvatting}</p>
             </div>
-            <p><strong>Let op:</strong> Je ontvangt ook een automatische agenda-uitnodiging vanuit Google Calendar. <br>Eet je mee? Dan ontvang je <strong>twee</strong> losse uitnodigingen (Diner & Lezing).</p>
+            <p>Gebruik de knoppen hieronder of de bijlage om het in je agenda te zetten.</p>
             <h3 style="margin-top: 0;">Programma</h3>
         """
         if is_online:
@@ -267,12 +248,22 @@ def send_confirmation_email(to_email, name, attend_type, dinner_choice, full_sub
             <p style="margin: 5px 0 0 0; font-size: 0.9em;">Mocht je (alsnog) online willen aansluiten, gebruik dan deze link:</p>
             <p style="margin: 5px 0 0 0;"><a href="{LINK_VIDEO}" target="_blank" style="color: #1a73e8; text-decoration: none;">{LINK_VIDEO}</a></p>
         </div>
+        
+        <br>
+        <a href="{google_link}" target="_blank" style="background-color:#4285F4; color:white; padding:10px 15px; text-decoration:none; border-radius:5px; font-weight:bold;">📅 Zet in Google Agenda</a>
+        <br><br><p>De officiële agenda-uitnodiging (voor Outlook/Apple) vind je ook als bijlage bij deze mail.</p>
+        
         <br><p>Tot dan!<br>Groet,<br><strong>EU Studiegroep</strong> 🇪🇺</p></body></html>"""
         
         msg_body = MIMEMultipart("alternative")
-        msg_body.attach(MIMEText(f"Beste {name},\n\nLeuk dat je erbij bent! Je ontvangt separaat Google Calendar invites.\n\nZie HTML mail voor details en de videolink.", 'plain', 'utf-8'))
+        msg_body.attach(MIMEText(f"Beste {name},\n\nLeuk dat je erbij bent! Zie HTML mail voor details en de videolink.", 'plain', 'utf-8'))
         msg_body.attach(MIMEText(html_body, 'html', 'utf-8'))
         msg.attach(msg_body)
+
+        if ics_content:
+            part = MIMEText(ics_content, 'calendar; method=REQUEST', 'utf-8')
+            part.add_header('Content-Disposition', 'attachment', filename='invite.ics')
+            msg.attach(part)
 
         server = smtplib.SMTP_SSL('smtp.gmail.com', 465)
         server.login(smtp_sender, smtp_password)
@@ -371,36 +362,32 @@ elif basis_vraag == "Ja":
                     save_to_sheet(f"{vn} {an}", email, att_type, join_din)
                     
                     cal_loc = LINK_VIDEO if "Online" in att_type else f"{LOC_LECTURE_NAME}, {LOC_LECTURE_ADDR}"
+                    cal_desc = f"Videolink: {LINK_VIDEO}\n\nSpreker: {SPEAKER_NAME}\n{SPEAKER_BIO}"
                     
-                    # Logica voor de email
                     if "Online" in att_type: msg_k, msg_l, msg_u = "de online lezing", "Google Meet", LINK_VIDEO
                     elif "Ja" in join_din: msg_k, msg_l, msg_u = "diner en lezing", LOC_DINNER_NAME, MAPS_DINNER
                     else: msg_k, msg_l, msg_u = "alleen de lezing", LOC_LECTURE_NAME, MAPS_LECTURE
                     
-                    # SYNC NAAR AGENDA VAN ORGANISATOR (GESPLITST)
+                    # LINKS voor de gebruiker
+                    g_url = create_google_cal_link(invite_title, TIME_LECTURE, TIME_END, cal_loc, cal_desc)
+                    i_dat = create_ics_content(invite_title, TIME_LECTURE, TIME_END, cal_loc, cal_desc)
+
                     if "@" in email:
                         st.write("Toevoegen aan Agenda Organisator...")
-                        
-                        # --- 1. HET LEZING EVENT (Voor Iedereen) ---
+                        # 1. Lezing Event in JOUW agenda zetten (zonder gasten)
                         title_lezing = f"🎤 Lezing: {SPEAKER_NAME}"
-                        # HIER STAAT DE VIDEOLINK IN DE AGENDA BESCHRIJVING:
-                        desc_lezing = f"Videolink: {LINK_VIDEO}\n\nSpreker: {SPEAKER_NAME}\n{SPEAKER_BIO}"
-                        # Locatie is fysiek adres of online
                         loc_lezing = f"{LOC_LECTURE_NAME}, {LOC_LECTURE_ADDR}"
+                        manage_calendar_event_organizer_only(title_lezing, TIME_LECTURE, TIME_END, loc_lezing, cal_desc, "Lezing")
                         
-                        manage_calendar_event(email, f"{vn} {an}", title_lezing, TIME_LECTURE, TIME_END, loc_lezing, desc_lezing, "Lezing")
-                        
-                        # --- 2. HET DINER EVENT (Alleen als 'Ja' gekozen is) ---
+                        # 2. Diner Event in JOUW agenda zetten (zonder gasten)
                         if "Ja" in join_din:
                             title_diner = f"🍕 Diner: {SPEAKER_NAME}"
                             desc_diner = f"Diner voorafgaand aan lezing {SPEAKER_NAME}.\nLocatie: {LOC_DINNER_NAME}"
                             loc_diner = f"{LOC_DINNER_NAME}, {LOC_DINNER_ADDR}"
-                            
-                            # Diner stopt als lezing begint
-                            manage_calendar_event(email, f"{vn} {an}", title_diner, TIME_DINNER, TIME_LECTURE, loc_diner, desc_diner, "Diner")
+                            manage_calendar_event_organizer_only(title_diner, TIME_DINNER, TIME_LECTURE, loc_diner, desc_diner, "Diner")
 
                         st.write("Bevestigingsmail versturen...")
-                        if send_confirmation_email(email, vn, att_type, join_din, f"EU Studiegroep {maand_naam.capitalize()} {EVENT_DATE.year} Bevestiging", "", None):
+                        if send_confirmation_email(email, vn, att_type, join_din, f"EU Studiegroep {maand_naam.capitalize()} {EVENT_DATE.year} Bevestiging", g_url, i_dat):
                             st.session_state.success_data["email_sent"] = True
                             st.session_state.success_data["email_addr"] = email
                     
@@ -411,6 +398,8 @@ elif basis_vraag == "Ja":
                         "msg_t": TIME_LECTURE,
                         "msg_l": msg_l,
                         "msg_u": msg_u,
+                        "g_url": g_url,
+                        "i_dat": i_dat,
                         "email_sent": st.session_state.success_data.get("email_sent", False),
                         "email_addr": email
                     }
@@ -426,9 +415,16 @@ elif basis_vraag == "Ja":
         st.success(f"✅ Bedankt {data['vn']}! Je staat op de lijst voor **{data['msg_k']}**. Tot **{datum_zonder_nul}** (aanvang **{data['msg_t'].strftime('%H:%M')}** bij **[{data['msg_l']}]({data['msg_u']})**).")
         
         if data.get("email_sent"):
-            st.info(f"📧 Bevestigingsmail verstuurd naar {data['email_addr']}. \n\n📅 **Check je agenda:** Je hebt ook Google Calendar uitnodiging(en) ontvangen. Accepteer deze om updates direct te ontvangen!")
+            st.info(f"📧 Bevestigingsmail verstuurd naar {data['email_addr']}.")
         
         st.divider()
+        st.markdown("### 📅 Zet direct in je agenda")
+        c_g, c_i = st.columns(2)
+        with c_g: 
+            st.markdown(f'''<a href="{data['g_url']}" target="_blank"><button style="width:100%; background-color:#4285F4; color:white; border:none; padding:10px; border-radius:5px; font-weight:bold; cursor:pointer;">Google Agenda ↗</button></a>''', unsafe_allow_html=True)
+        with c_i: 
+            st.download_button("Download Outlook / iCal 📥", data['i_dat'], "lezing.ics", "text/calendar", use_container_width=True)
+
 
 st.markdown("---")
 st.markdown("### 🙋 Vragen?")
