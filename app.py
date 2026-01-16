@@ -131,10 +131,6 @@ def force_ascii(text):
 
 # --- CALENDAR API FUNCTIE ---
 def manage_calendar_event(user_email, user_name, title, start_dt, end_dt, location, description, search_query):
-    """
-    Beheert het agenda-event en waarborgt privacy.
-    search_query is nodig om diner en lezing uit elkaar te houden (bijv. "Diner" of "Lezing").
-    """
     try:
         creds_dict = st.secrets["gcp_service_account"]
         creds = service_account.Credentials.from_service_account_info(
@@ -143,17 +139,15 @@ def manage_calendar_event(user_email, user_name, title, start_dt, end_dt, locati
         service = build('calendar', 'v3', credentials=creds)
         calendar_id = CONTACT_EMAIL 
         
-        # Zoekrange (ruim nemen om te zorgen dat we hem vinden)
         time_min = (start_dt - timedelta(minutes=15)).isoformat() + 'Z' 
         time_max = (end_dt + timedelta(minutes=15)).isoformat() + 'Z'
         
-        # We zoeken specifiek op de titel (search_query) zodat we Diner en Lezing niet door elkaar halen
         events_result = service.events().list(
             calendarId=calendar_id, 
             timeMin=time_min, 
             timeMax=time_max, 
             singleEvents=True,
-            q=search_query # CRUCIAAL: Zoek op "Diner" of "Lezing"
+            q=search_query
         ).execute()
         events = events_result.get('items', [])
         
@@ -161,12 +155,10 @@ def manage_calendar_event(user_email, user_name, title, start_dt, end_dt, locati
         current_attendees = []
         
         if events:
-            # Event bestaat al
             event = events[0]
             event_id = event['id']
             current_attendees = event.get('attendees', [])
         else:
-            # Nieuw event aanmaken
             event_body = {
                 'summary': title,
                 'location': location,
@@ -180,13 +172,12 @@ def manage_calendar_event(user_email, user_name, title, start_dt, end_dt, locati
                     'timeZone': 'Europe/Amsterdam',
                 },
                 'attendees': [],
-                'guestsCanSeeOtherGuests': False, # Privacy
+                'guestsCanSeeOtherGuests': False,
             }
             created_event = service.events().insert(calendarId=calendar_id, body=event_body).execute()
             event_id = created_event['id']
             current_attendees = []
 
-        # Gebruiker toevoegen
         already_added = any(a.get('email') == user_email for a in current_attendees)
         
         if not already_added:
@@ -221,7 +212,7 @@ def render_program_card(emoji, title, clock_emoji, time_str, loc_name, loc_addr,
         else:
             st.markdown(f"**📍 {loc_name}** ({loc_addr} · [Route]({map_url}))")
 
-# --- EMAIL FUNCTIE (SMTP) ---
+# --- EMAIL FUNCTIE (AANGEPAST) ---
 def send_confirmation_email(to_email, name, attend_type, dinner_choice, full_subject_line, google_link, ics_content):
     try:
         raw_sender = st.secrets["email"]["sender_email"]
@@ -269,10 +260,17 @@ def send_confirmation_email(to_email, name, attend_type, dinner_choice, full_sub
                 <p style="margin: 0;">📍 <strong>{LOC_LECTURE_NAME}</strong> ({LOC_LECTURE_ADDR} · <a href="{MAPS_LECTURE}" target="_blank" style="color: #4285F4; text-decoration: none;">Route</a>)</p>
             </div>"""
 
-        html_body += f"""<br><p>Tot dan!<br>Groet,<br><strong>EU Studiegroep</strong> 🇪🇺</p></body></html>"""
+        # --- NIEUW: VIDEOLINK VOOR IEDEREEN ---
+        html_body += f"""
+        <div style="margin-top: 20px; padding: 10px; background-color: #e8f0fe; border-radius: 4px;">
+            <p style="margin: 0; font-weight: bold; color: #1a73e8;">📹 Videolink</p>
+            <p style="margin: 5px 0 0 0; font-size: 0.9em;">Mocht je (alsnog) online willen aansluiten, gebruik dan deze link:</p>
+            <p style="margin: 5px 0 0 0;"><a href="{LINK_VIDEO}" target="_blank" style="color: #1a73e8; text-decoration: none;">{LINK_VIDEO}</a></p>
+        </div>
+        <br><p>Tot dan!<br>Groet,<br><strong>EU Studiegroep</strong> 🇪🇺</p></body></html>"""
         
         msg_body = MIMEMultipart("alternative")
-        msg_body.attach(MIMEText(f"Beste {name},\n\nLeuk dat je erbij bent! Je ontvangt separaat Google Calendar invites.\n\nZie HTML mail voor details.", 'plain', 'utf-8'))
+        msg_body.attach(MIMEText(f"Beste {name},\n\nLeuk dat je erbij bent! Je ontvangt separaat Google Calendar invites.\n\nZie HTML mail voor details en de videolink.", 'plain', 'utf-8'))
         msg_body.attach(MIMEText(html_body, 'html', 'utf-8'))
         msg.attach(msg_body)
 
@@ -284,14 +282,6 @@ def send_confirmation_email(to_email, name, attend_type, dinner_choice, full_sub
     except Exception as e:
         st.error(f"Fout bij verzenden email: {e}")
         return False
-
-def create_google_cal_link(title, start_dt, end_dt, location, description):
-    params = {"action": "TEMPLATE", "text": title, "dates": f"{start_dt.strftime('%Y%m%dT%H%M%S')}/{end_dt.strftime('%Y%m%dT%H%M%S')}", "details": description, "location": location, "ctz": "Europe/Amsterdam"}
-    return f"https://calendar.google.com/calendar/render?{urllib.parse.urlencode(params)}"
-
-def create_ics_content(title, start_dt, end_dt, location, description):
-    fmt = "%Y%m%dT%H%M%S"
-    return f"BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//LezingApp//NL\nMETHOD:REQUEST\nBEGIN:VEVENT\nUID:{datetime.now().strftime(fmt)}@lezingapp\nDTSTAMP:{datetime.now().strftime(fmt)}\nDTSTART:{start_dt.strftime(fmt)}\nDTEND:{end_dt.strftime(fmt)}\nSUMMARY:{title}\nDESCRIPTION:{description.replace(chr(10), '\\n')}\nLOCATION:{location}\nSTATUS:CONFIRMED\nEND:VEVENT\nEND:VCALENDAR"
 
 # --- 3. UI OPBOUW ---
 st.set_page_config(page_title="Aanmelding Lezing", page_icon="🇪🇺", initial_sidebar_state="collapsed")
@@ -374,30 +364,26 @@ elif basis_vraag == "Ja":
                     
                     cal_loc = LINK_VIDEO if "Online" in att_type else f"{LOC_LECTURE_NAME}, {LOC_LECTURE_ADDR}"
                     
-                    # Logica voor de email
+                    # VIDEOLINK OOK IN AGENDA BESCHRIJVING
+                    cal_desc = f"Videolink: {LINK_VIDEO}\n\nSpreker: {SPEAKER_NAME}\n{SPEAKER_BIO}"
+                    
                     if "Online" in att_type: msg_k, msg_l, msg_u = "de online lezing", "Google Meet", LINK_VIDEO
                     elif "Ja" in join_din: msg_k, msg_l, msg_u = "diner en lezing", LOC_DINNER_NAME, MAPS_DINNER
                     else: msg_k, msg_l, msg_u = "alleen de lezing", LOC_LECTURE_NAME, MAPS_LECTURE
                     
-                    # SYNC NAAR AGENDA VAN ORGANISATOR (GESPLITST)
                     if "@" in email:
                         st.write("Toevoegen aan Agenda Organisator...")
                         
-                        # --- 1. HET LEZING EVENT (Voor Iedereen) ---
+                        # --- 1. LEZING EVENT (IEDEREEN) ---
                         title_lezing = f"🎤 Lezing: {SPEAKER_NAME}"
-                        desc_lezing = f"Spreker: {SPEAKER_NAME}\n{SPEAKER_BIO}\n\nVideolink: {LINK_VIDEO}"
-                        # Locatie is fysiek adres of online
                         loc_lezing = f"{LOC_LECTURE_NAME}, {LOC_LECTURE_ADDR}"
+                        manage_calendar_event(email, f"{vn} {an}", title_lezing, TIME_LECTURE, TIME_END, loc_lezing, cal_desc, "Lezing")
                         
-                        manage_calendar_event(email, f"{vn} {an}", title_lezing, TIME_LECTURE, TIME_END, loc_lezing, desc_lezing, "Lezing")
-                        
-                        # --- 2. HET DINER EVENT (Alleen als 'Ja' gekozen is) ---
+                        # --- 2. DINER EVENT (ALLEEN INDIEN 'JA') ---
                         if "Ja" in join_din:
                             title_diner = f"🍕 Diner: {SPEAKER_NAME}"
                             desc_diner = f"Diner voorafgaand aan lezing {SPEAKER_NAME}.\nLocatie: {LOC_DINNER_NAME}"
                             loc_diner = f"{LOC_DINNER_NAME}, {LOC_DINNER_ADDR}"
-                            
-                            # Diner stopt als lezing begint
                             manage_calendar_event(email, f"{vn} {an}", title_diner, TIME_DINNER, TIME_LECTURE, loc_diner, desc_diner, "Diner")
 
                         st.write("Bevestigingsmail versturen...")
@@ -410,34 +396,4 @@ elif basis_vraag == "Ja":
                         "vn": vn,
                         "msg_k": msg_k,
                         "msg_t": TIME_LECTURE,
-                        "msg_l": msg_l,
-                        "msg_u": msg_u,
-                        "email_sent": st.session_state.success_data.get("email_sent", False),
-                        "email_addr": email
-                    }
-                    
-                    status.update(label="Aanmelding geslaagd!", state="complete", expanded=False)
-
-                except Exception as e: 
-                    status.update(label="Er ging iets mis", state="error")
-                    st.error(f"Fout: {e}")
-
-    if st.session_state.submission_success:
-        data = st.session_state.success_data
-        st.success(f"✅ Bedankt {data['vn']}! Je staat op de lijst voor **{data['msg_k']}**. Tot **{datum_zonder_nul}** (aanvang **{data['msg_t'].strftime('%H:%M')}** bij **[{data['msg_l']}]({data['msg_u']})**).")
-        
-        if data.get("email_sent"):
-            st.info(f"📧 Bevestigingsmail verstuurd naar {data['email_addr']}. \n\n📅 **Check je agenda:** Je hebt ook Google Calendar uitnodiging(en) ontvangen. Accepteer deze om updates direct te ontvangen!")
-        
-        st.divider()
-
-st.markdown("---")
-st.markdown("### 🙋 Vragen?")
-st.write(f"Heb je vragen of lukt het aanmelden niet? Stuur ons gerust een mailtje ({CONTACT_EMAIL}).")
-
-mailto = f"mailto:{CONTACT_EMAIL}?subject={urllib.parse.quote(f'Vraag lezing {maand_naam} - {SPEAKER_NAME}')}"
-
-st.markdown(f'''<a href="{mailto}" target="_blank" style="text-decoration:none;">
-<button title="{CONTACT_EMAIL}" style="background-color:#6c757d;color:white;border:none;padding:8px 16px;border-radius:5px;cursor:pointer;font-size:16px;">
-📧 E-mail ons
-</button></a>''', unsafe_allow_html=True)
+                        "msg_
