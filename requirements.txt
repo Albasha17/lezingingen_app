@@ -1,5 +1,7 @@
 streamlit
 gspread
 oauth2client
+google-api-python-client
+google-auth
 pandas
 pytz
