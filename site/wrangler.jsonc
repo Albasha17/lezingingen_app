@@ -19,7 +19,7 @@
     "MAIL_FROM": "EU Studiegroep <aanmelden@studiegroep.eu>",
     "MAIL_REPLY_TO": "eustudiegroep@gmail.com",
     // Cloudflare Access (Zero Trust > Access > Applications > studiegroep admin)
-    "ACCESS_TEAM_DOMAIN": "https://REPLACE-ME.cloudflareaccess.com",
+    "ACCESS_TEAM_DOMAIN": "https://late-shape-9df3.cloudflareaccess.com",
     "ACCESS_AUD": "568797a1066b4428833df849ad14737b217c5025e3086f0bf6ec5beccd8f2f28",
     // Turnstile site key (public); the secret goes in TURNSTILE_SECRET_KEY
     "TURNSTILE_SITE_KEY": "0x4AAAAAAFi0ijw22a4SQnFi"
