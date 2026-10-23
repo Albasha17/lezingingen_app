@@ -7,6 +7,11 @@ const past = await getPastLectures();
 ---
 
 <Base title="Archief · EU Studiegroep">
-  <h1>Eerdere lezingen</h1>
-  {past.length === 0 ? <p>Nog geen eerdere lezingen.</p> : past.map((lecture) => <LectureCard lecture={lecture} />)}
+  <div class="page-head" slot="hero">
+    <p class="eyebrow">Archief</p>
+    <h1>Eerdere avonden</h1>
+  </div>
+  <div class="container narrow" style="padding: 0">
+    {past.length === 0 ? <p class="notice">Nog geen eerdere lezingen.</p> : past.map((lecture) => <LectureCard lecture={lecture} />)}
+  </div>
 </Base>

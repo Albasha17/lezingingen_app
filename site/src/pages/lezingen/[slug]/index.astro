@@ -1,11 +1,11 @@
 ---
-import { env } from "cloudflare:workers";
 import Base from "../../../layouts/Base.astro";
+import SignupForm from "../../../components/SignupForm.astro";
 import { attendanceFor, googleCalendarUrl, type Attendance } from "../../../lib/calendar";
 import { getLectureBySlug, getSettings, markEmailSent, saveRegistration, todayAmsterdam, type RegistrationStatus } from "../../../lib/db";
 import { sendConfirmation } from "../../../lib/email";
 import { field, isEmail } from "../../../lib/forms";
-import { imageUrl, lectureTitle, longDate, mapsUrl, shortDate } from "../../../lib/format";
+import { imageUrl, longDate, mapsUrl, shortDate } from "../../../lib/format";
 import { verifyTurnstile } from "../../../lib/turnstile";
 
 const lecture = await getLectureBySlug(Astro.params.slug ?? "");
@@ -70,101 +70,84 @@ if (Astro.request.method === "POST" && signupOpen) {
 ---
 
 <Base title={`${lecture.speaker_name} · EU Studiegroep`} description={lecture.speaker_role}>
-  {env.TURNSTILE_SITE_KEY && signupOpen && <script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>}
-
-  <p class="meta">🇪🇺 {lectureTitle(lecture.date)}</p>
-  <h1>{lecture.speaker_name}</h1>
-  {lecture.speaker_role && <p><em>{lecture.speaker_role}</em></p>}
-  {photo && <img class="speaker-photo" src={photo} alt={lecture.speaker_name} />}
-  {lecture.speaker_bio.split(/\n{2,}/).map((para) => <p>{para}</p>)}
-  {lecture.speaker_linkedin && <p><a class="button secondary" href={lecture.speaker_linkedin}>👔 LinkedIn profiel</a></p>}
-
-  <h2>📅 {longDate(lecture.date)}</h2>
-  {hasDinner && (
-    <div class="program dinner">
-      <p><strong>🍕 Diner</strong></p>
-      <p><strong>🕕 {lecture.time_dinner}</strong> (aanvang)</p>
-      <p>📍 <strong>{lecture.dinner_name}</strong> ({lecture.dinner_address} · <a href={dinnerMaps}>Route</a>)</p>
+  <div class="page-head" slot="hero">
+    <span class="date">{longDate(lecture.date)}</span>
+    <h1>{lecture.speaker_name}</h1>
+    {lecture.speaker_role && <p class="lead">{lecture.speaker_role}</p>}
+    <div class="times glass" style="padding: 8px; margin-top: 16px; max-width: 480px">
+      {hasDinner && <div><span>Pizza</span><strong>{lecture.time_dinner}</strong></div>}
+      <div><span>Lezing</span><strong>{lecture.time_lecture}</strong></div>
+      <div><span>Tot</span><strong>{lecture.time_end}</strong></div>
     </div>
-  )}
-  <div class="program">
-    <p><strong>🎤 Lezing</strong></p>
-    <p><strong>🕢 {lecture.time_lecture}</strong> (aanvang)</p>
-    <p>📍 <strong>{lecture.lecture_name}</strong> ({lecture.lecture_address} · <a href={lectureMaps}>Route</a>)</p>
-    {lecture.video_url && <p>💻 Ook online te volgen via een videolink, die je na aanmelding ontvangt.</p>}
   </div>
 
-  {!isPast && (
-    <>
-      <h2>💶 Kosten</h2>
-      <p>
-        Per lezing € {settings.price_single ?? "10"},-, half seizoen (5 lezingen) € {settings.price_half_season ?? "40"},-, heel
-        seizoen (10 lezingen) € {settings.price_full_season ?? "60"},-. Vul bij het betalen zelf het bedrag en je naam in.
-      </p>
-      {lecture.payment_url && <a class="button secondary" href={lecture.payment_url}>💳 Betaalverzoek openen</a>}
+  <div class="split">
+    <div class="stack">
+      {photo && <img class="speaker-photo" src={photo} alt={lecture.speaker_name} />}
+      <div class="bio">
+        {lecture.speaker_bio.split(/\n{2,}/).map((para) => <p>{para}</p>)}
+      </div>
+      {lecture.speaker_linkedin && <p style="margin: 0"><a href={lecture.speaker_linkedin}>LinkedIn-profiel van {lecture.speaker_name}</a></p>}
 
-      <h2 id="aanmelden">📝 Aanmelden</h2>
-      {done ? (
-        done.attendance ? (
-          <div class="notice success">
-            <p>
-              ✅ Bedankt {done.firstName}! Je staat op de lijst voor <strong>{done.attendance.summary}</strong>. Tot{" "}
-              <strong>{shortDate(lecture.date)}</strong> (aanvang <strong>{done.attendance.start}</strong> bij{" "}
-              {done.attendance.placeUrl ? <a href={done.attendance.placeUrl}>{done.attendance.placeName}</a> : done.attendance.placeName}).
-            </p>
-            {done.emailed ? (
-              <p>📧 Bevestigingsmail verstuurd naar {done.email}.</p>
-            ) : (
-              <p>De bevestigingsmail kon niet worden verstuurd, maar je aanmelding staat genoteerd.</p>
-            )}
-            <h3>📅 Zet direct in je agenda</h3>
-            <p class="buttons">
-              <a class="button" href={googleCalendarUrl(lecture, done.attendance)}>Google Agenda ↗</a>
-              <a class="button secondary" href={`/lezingen/${lecture.slug}/agenda.ics?keuze=${done.attendance.kind}`}>Outlook / iCal 📥</a>
-            </p>
-          </div>
-        ) : (
-          <p class="notice success">Jammer! Je afmelding is geregistreerd, {done.firstName}.</p>
-        )
-      ) : signupOpen ? (
-        <form method="post" action="#aanmelden" class="signup">
-          {error && <p class="notice error" role="alert">{error}</p>}
-          <fieldset>
-            <legend>Hoe ben je erbij op {shortDate(lecture.date)}?</legend>
-            {hasDinner && (
-              <label class="choice">
-                <input type="radio" name="keuze" value="diner" required checked={values.keuze === "diner"} />
-                Fysiek, met diner vooraf (start {lecture.time_dinner})
-              </label>
-            )}
-            <label class="choice">
-              <input type="radio" name="keuze" value="lezing" required checked={values.keuze === "lezing"} />
-              Fysiek, alleen de lezing (start {lecture.time_lecture})
-            </label>
-            {lecture.video_url && (
-              <label class="choice">
-                <input type="radio" name="keuze" value="online" required checked={values.keuze === "online"} />
-                Online, via de videolink
-              </label>
-            )}
-            <label class="choice">
-              <input type="radio" name="keuze" value="afgemeld" required checked={values.keuze === "afgemeld"} />
-              Ik kan niet, ik meld me af
-            </label>
-          </fieldset>
-          <div class="row">
-            <label>Voornaam<input name="first_name" autocomplete="given-name" required value={values.first_name} /></label>
-            <label>Achternaam<input name="last_name" autocomplete="family-name" required value={values.last_name} /></label>
-          </div>
-          <label>E-mailadres (voor bevestiging en videolink; optioneel bij afmelden)
-            <input type="email" name="email" autocomplete="email" placeholder="jouw@email.nl" value={values.email} />
-          </label>
-          {env.TURNSTILE_SITE_KEY && <div class="cf-turnstile" data-sitekey={env.TURNSTILE_SITE_KEY} data-language="nl"></div>}
-          <button type="submit" class="button">Verstuur</button>
-        </form>
-      ) : (
-        <p class="notice">Aanmelden voor deze lezing is gesloten.</p>
+      <h2 style="margin: 24px 0 0">Waar</h2>
+      {hasDinner && (
+        <div class="program">
+          <span class="time">{lecture.time_dinner}</span>
+          <p><strong>Pizza bij {lecture.dinner_name}</strong><br /><span class="muted">{lecture.dinner_address} · </span><a href={dinnerMaps}>Route</a></p>
+        </div>
       )}
-    </>
-  )}
+      <div class="program">
+        <span class="time">{lecture.time_lecture}</span>
+        <p><strong>Lezing in {lecture.lecture_name}</strong><br /><span class="muted">{lecture.lecture_address} · </span><a href={lectureMaps}>Route</a></p>
+      </div>
+      {lecture.video_url && (
+        <div class="program online">
+          <span class="time">Online</span>
+          <p><strong>Ook online te volgen</strong><br /><span class="muted">De videolink krijg je na aanmelding per mail.</span></p>
+        </div>
+      )}
+    </div>
+
+    {!isPast && (
+      <div id="aanmelden" class="stack">
+        {done ? (
+          done.attendance ? (
+            <div class="notice success">
+              <h2 style="margin: 0 0 8px">Tot dan, {done.firstName}!</h2>
+              <p>
+                Je staat op de lijst voor <strong>{done.attendance.summary}</strong> op <strong>{shortDate(lecture.date)}</strong>, aanvang{" "}
+                <strong>{done.attendance.start}</strong> bij{" "}
+                {done.attendance.placeUrl ? <a href={done.attendance.placeUrl}>{done.attendance.placeName}</a> : done.attendance.placeName}.
+              </p>
+              {done.emailed ? (
+                <p>We hebben een bevestiging gestuurd naar {done.email}.</p>
+              ) : (
+                <p>De bevestigingsmail kon niet worden verstuurd, maar je aanmelding staat genoteerd.</p>
+              )}
+              <h3 style="margin: 16px 0 8px">Zet het in je agenda</h3>
+              <p class="buttons">
+                <a class="button" href={googleCalendarUrl(lecture, done.attendance)}>Google Agenda</a>
+                <a class="button secondary" href={`/lezingen/${lecture.slug}/agenda.ics?keuze=${done.attendance.kind}`}>Outlook / Apple (.ics)</a>
+              </p>
+            </div>
+          ) : (
+            <p class="notice success">Jammer! Je afmelding is geregistreerd, {done.firstName}.</p>
+          )
+        ) : signupOpen ? (
+          <SignupForm lecture={lecture} values={values} error={error} />
+        ) : (
+          <p class="notice">Aanmelden voor deze lezing is gesloten.</p>
+        )}
+
+        <div class="panel">
+          <h3>Contributie</h3>
+          <p class="muted" style="margin: 0">
+            Per avond € {settings.price_single ?? "10"}, half seizoen (5 avonden) € {settings.price_half_season ?? "40"}, heel seizoen
+            (10 avonden) € {settings.price_full_season ?? "60"}. Studenten krijgen korting. Vul bij het betalen zelf het bedrag en je naam in.
+          </p>
+          {lecture.payment_url && <p style="margin: 12px 0 0"><a class="button secondary" href={lecture.payment_url}>Betaalverzoek openen</a></p>}
+        </div>
+      </div>
+    )}
+  </div>
 </Base>

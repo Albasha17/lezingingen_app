@@ -1,18 +1,23 @@
 ---
 import type { Lecture } from "../lib/db";
-import { longDate } from "../lib/format";
 
 interface Props {
   lecture: Lecture;
-  highlight?: boolean;
+  /** Show a signup button (upcoming lectures with signup open). */
+  signup?: boolean;
 }
 
-const { lecture, highlight = false } = Astro.props;
+const { lecture, signup = false } = Astro.props;
+const date = new Date(`${lecture.date}T12:00:00Z`);
+const day = date.getUTCDate();
+const month = new Intl.DateTimeFormat("nl-NL", { month: "short", year: "numeric", timeZone: "UTC" }).format(date).replace(".", "");
 ---
 
-<article class:list={["card", { next: highlight }]}>
-  <p class="meta">{longDate(lecture.date)} · {lecture.time_dinner ? `diner ${lecture.time_dinner}, ` : ""}lezing {lecture.time_lecture}</p>
-  <h3><a href={`/lezingen/${lecture.slug}`}>{lecture.speaker_name}</a></h3>
-  {lecture.speaker_role && <p class="meta"><em>{lecture.speaker_role}</em></p>}
-  {highlight && <a class="button" href={`/lezingen/${lecture.slug}#aanmelden`}>Meld je aan</a>}
+<article class="card">
+  <div class="day"><strong>{day}</strong><span>{month}</span></div>
+  <div>
+    <h3><a href={`/lezingen/${lecture.slug}`}>{lecture.speaker_name}</a></h3>
+    {lecture.speaker_role && <p class="meta">{lecture.speaker_role}</p>}
+  </div>
+  {signup && Boolean(lecture.signup_open) && <a class="button secondary" href={`/lezingen/${lecture.slug}#aanmelden`}>Aanmelden</a>}
 </article>

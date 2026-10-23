@@ -3,6 +3,10 @@ import Base from "../layouts/Base.astro";
 ---
 
 <Base title="Niet gevonden · EU Studiegroep">
-  <h1>Pagina niet gevonden</h1>
-  <p><a href="/">Terug naar de homepage</a></p>
+  <div class="page-head" slot="hero">
+    <p class="eyebrow">404</p>
+    <h1>Deze pagina bestaat niet</h1>
+    <p class="lead">Misschien is hij verplaatst, of zat er een typfout in de link.</p>
+  </div>
+  <p><a class="button" href="/">Naar de homepage</a></p>
 </Base>

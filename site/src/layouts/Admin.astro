@@ -1,4 +1,6 @@
 ---
+import "@fontsource-variable/fraunces";
+import "@fontsource-variable/plus-jakarta-sans";
 import "../styles/global.css";
 
 interface Props {
@@ -21,13 +23,13 @@ const admin = Astro.locals.admin!;
   <body class="admin">
     <header class="site">
       <div class="container wide">
-        <a class="brand" href="/admin">🛠️ Beheer</a>
+        <a class="brand" href="/admin">EU Studiegroep <span class="tag">Beheer</span></a>
         <nav>
           <a href="/admin">Lezingen</a>
           <a href="/admin/lezingen/nieuw">Nieuwe lezing</a>
           {admin.role === "owner" && <a href="/admin/beheerders">Beheerders</a>}
           <a href="/admin/instellingen">Instellingen</a>
-          <a href="/">Website ↗</a>
+          <a href="/">Website bekijken</a>
         </nav>
       </div>
     </header>
