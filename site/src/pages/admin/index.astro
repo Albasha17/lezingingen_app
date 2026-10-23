@@ -1,0 +1,50 @@
+---
+import Admin from "../../layouts/Admin.astro";
+import { getAllLectures, getCountsByLecture, todayAmsterdam } from "../../lib/db";
+import { longDate } from "../../lib/format";
+
+const [lectures, counts] = await Promise.all([getAllLectures(), getCountsByLecture()]);
+const today = todayAmsterdam();
+const upcoming = lectures.filter((l) => l.date >= today).reverse();
+const past = lectures.filter((l) => l.date < today);
+const empty = { fysiek: 0, dinner: 0, online: 0, afgemeld: 0 };
+---
+
+<Admin title="Lezingen">
+  <h1>Lezingen</h1>
+  <p><a class="button" href="/admin/lezingen/nieuw">+ Nieuwe lezing</a></p>
+  {[{ title: "Komend", rows: upcoming }, { title: "Geweest", rows: past }].map(({ title, rows }) => (
+    <>
+      <h2>{title}</h2>
+      {rows.length === 0 ? (
+        <p>Geen lezingen.</p>
+      ) : (
+        <div class="table-wrap">
+          <table class="data">
+            <thead>
+              <tr><th>Datum</th><th>Spreker</th><th>Fysiek</th><th>Diner</th><th>Online</th><th>Afgemeld</th><th></th></tr>
+            </thead>
+            <tbody>
+              {rows.map((l) => {
+                const c = counts.get(l.id) ?? empty;
+                return (
+                  <tr>
+                    <td>{longDate(l.date)}</td>
+                    <td>{l.speaker_name}{!l.signup_open && " (gesloten)"}</td>
+                    <td>{c.fysiek}</td>
+                    <td>{c.dinner}</td>
+                    <td>{c.online}</td>
+                    <td>{c.afgemeld}</td>
+                    <td>
+                      <a href={`/admin/lezingen/${l.id}/aanmeldingen`}>Aanmeldingen</a> · <a href={`/admin/lezingen/${l.id}`}>Bewerken</a>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </>
+  ))}
+</Admin>

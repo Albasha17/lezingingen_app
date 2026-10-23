@@ -28,7 +28,7 @@ CREATE TABLE registrations (
   lecture_id INTEGER NOT NULL REFERENCES lectures(id) ON DELETE CASCADE,
   first_name TEXT NOT NULL,
   last_name TEXT NOT NULL,
-  email TEXT,                      -- optional for afmeldingen
+  email TEXT,                      -- lowercased; optional for afmeldingen
   status TEXT NOT NULL CHECK (status IN ('fysiek', 'online', 'afgemeld')),
   dinner INTEGER NOT NULL DEFAULT 0,
   cancel_token TEXT NOT NULL UNIQUE,
@@ -38,7 +38,7 @@ CREATE TABLE registrations (
 );
 
 -- One registration per email per lecture; a second signup updates the first.
-CREATE UNIQUE INDEX registrations_lecture_email ON registrations(lecture_id, lower(email)) WHERE email IS NOT NULL;
+CREATE UNIQUE INDEX registrations_lecture_email ON registrations(lecture_id, email) WHERE email IS NOT NULL;
 CREATE INDEX registrations_lecture ON registrations(lecture_id);
 
 -- Who may use /admin. Cloudflare Access handles the email login; the site checks the

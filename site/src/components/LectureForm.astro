@@ -1,0 +1,56 @@
+---
+import type { Lecture } from "../lib/db";
+import { imageUrl } from "../lib/format";
+
+interface Props {
+  lecture: Partial<Lecture>;
+  submitLabel: string;
+}
+
+const { lecture, submitLabel } = Astro.props;
+const photo = lecture.image_key ? imageUrl(lecture as Lecture) : null;
+---
+
+<form method="post" enctype="multipart/form-data" class="admin">
+  <div class="grid-2">
+    <div>
+      <h3>📅 Datum en tijd</h3>
+      <label>Datum<input type="date" name="date" required value={lecture.date ?? ""} /></label>
+      <div class="row">
+        <label>Start diner (leeg = geen diner)<input type="time" name="time_dinner" value={lecture.time_dinner ?? ""} /></label>
+        <label>Start lezing<input type="time" name="time_lecture" required value={lecture.time_lecture ?? "19:30"} /></label>
+      </div>
+      <label>Eindtijd<input type="time" name="time_end" required value={lecture.time_end ?? "21:00"} /></label>
+
+      <h3>👤 Spreker</h3>
+      <label>Naam<input name="speaker_name" required value={lecture.speaker_name ?? ""} /></label>
+      <label>Rol / functie<input name="speaker_role" value={lecture.speaker_role ?? ""} /></label>
+      <label>Biografie (lege regel = nieuwe alinea)<textarea name="speaker_bio">{lecture.speaker_bio ?? ""}</textarea></label>
+      <label>LinkedIn<input name="speaker_linkedin" value={lecture.speaker_linkedin ?? ""} /></label>
+      <label>Foto (liggend, max 5 MB)<input type="file" name="photo" accept="image/jpeg,image/png,image/webp" /></label>
+      {photo && (
+        <>
+          <img class="thumb" src={photo} alt="Huidige foto" />
+          <label class="choice"><input type="checkbox" name="remove_photo" value="1" /> Foto verwijderen</label>
+        </>
+      )}
+    </div>
+    <div>
+      <h3>📍 Diner</h3>
+      <label>Restaurant<input name="dinner_name" value={lecture.dinner_name ?? ""} /></label>
+      <label>Adres<input name="dinner_address" value={lecture.dinner_address ?? ""} /></label>
+      <label>Google Maps-link (optioneel)<input name="dinner_maps_url" value={lecture.dinner_maps_url ?? ""} /></label>
+
+      <h3>📍 Lezing</h3>
+      <label>Locatie<input name="lecture_name" required value={lecture.lecture_name ?? ""} /></label>
+      <label>Adres<input name="lecture_address" required value={lecture.lecture_address ?? ""} /></label>
+      <label>Google Maps-link (optioneel)<input name="lecture_maps_url" value={lecture.lecture_maps_url ?? ""} /></label>
+
+      <h3>🔗 Links</h3>
+      <label>Google Meet / videolink (leeg = geen online optie)<input name="video_url" value={lecture.video_url ?? ""} /></label>
+      <label>Betaalverzoek (Bunq/Tikkie)<input name="payment_url" value={lecture.payment_url ?? ""} /></label>
+      <label class="choice"><input type="checkbox" name="signup_open" value="1" checked={lecture.signup_open !== 0} /> Aanmelden staat open</label>
+    </div>
+  </div>
+  <button type="submit" class="button">{submitLabel}</button>
+</form>

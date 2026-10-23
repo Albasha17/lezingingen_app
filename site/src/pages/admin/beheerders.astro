@@ -1,0 +1,79 @@
+---
+import Admin from "../../layouts/Admin.astro";
+import { addAdmin, getAdmins, removeAdmin } from "../../lib/db";
+import { field, isEmail } from "../../lib/forms";
+
+const me = Astro.locals.admin!;
+if (me.role !== "owner") {
+  return new Response("Alleen hoofdbeheerders kunnen beheerders toevoegen.", { status: 403 });
+}
+
+let error = "";
+let message = "";
+if (Astro.request.method === "POST") {
+  const form = await Astro.request.formData();
+  const email = field(form, "email").toLowerCase();
+  if (field(form, "action") === "remove") {
+    if (email === me.email) {
+      error = "Je kunt jezelf niet verwijderen.";
+    } else {
+      await removeAdmin(email);
+      message = `${email} heeft geen toegang meer.`;
+    }
+  } else if (!isEmail(email)) {
+    error = "Vul een geldig e-mailadres in.";
+  } else {
+    await addAdmin(email, field(form, "role") === "owner" ? "owner" : "admin", me.email);
+    message = `${email} kan nu inloggen op /admin.`;
+  }
+}
+const admins = await getAdmins();
+---
+
+<Admin title="Beheerders">
+  <h1>Beheerders</h1>
+  <p>
+    Iedereen in deze lijst kan inloggen op het beheer met een eenmalige code per e-mail. Hoofdbeheerders kunnen ook
+    beheerders toevoegen en verwijderen.
+  </p>
+  {error && <p class="notice error">{error}</p>}
+  {message && <p class="notice success">{message}</p>}
+
+  <div class="table-wrap">
+    <table class="data">
+      <thead><tr><th>E-mail</th><th>Rol</th><th>Toegevoegd door</th><th></th></tr></thead>
+      <tbody>
+        {admins.map((a) => (
+          <tr>
+            <td>{a.email}</td>
+            <td>{a.role === "owner" ? "Hoofdbeheerder" : "Beheerder"}</td>
+            <td>{a.added_by ?? "–"}</td>
+            <td>
+              {a.email !== me.email && (
+                <form method="post" class="inline" onsubmit="return confirm('Toegang intrekken?')">
+                  <input type="hidden" name="email" value={a.email} />
+                  <button class="link danger" name="action" value="remove">Verwijder</button>
+                </form>
+              )}
+            </td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+
+  <h2>Beheerder toevoegen</h2>
+  <form method="post" class="admin">
+    <input type="hidden" name="action" value="add" />
+    <div class="row">
+      <label>E-mailadres<input type="email" name="email" required /></label>
+      <label>Rol
+        <select name="role">
+          <option value="admin">Beheerder</option>
+          <option value="owner">Hoofdbeheerder (kan beheerders toevoegen)</option>
+        </select>
+      </label>
+    </div>
+    <button type="submit" class="button">Toevoegen</button>
+  </form>
+</Admin>

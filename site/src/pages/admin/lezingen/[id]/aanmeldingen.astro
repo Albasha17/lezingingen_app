@@ -1,0 +1,79 @@
+---
+import Admin from "../../../../layouts/Admin.astro";
+import { countRegistrations, deleteRegistration, getLecture, getRegistration, getRegistrations, markEmailSent } from "../../../../lib/db";
+import { sendConfirmation } from "../../../../lib/email";
+import { longDate } from "../../../../lib/format";
+import { field } from "../../../../lib/forms";
+
+const lecture = await getLecture(Number(Astro.params.id));
+if (!lecture) return new Response(null, { status: 404 });
+
+let message = "";
+if (Astro.request.method === "POST") {
+  const form = await Astro.request.formData();
+  const registration = await getRegistration(Number(field(form, "id")));
+  if (registration && registration.lecture_id === lecture.id) {
+    if (field(form, "action") === "delete") {
+      await deleteRegistration(registration.id);
+      message = `${registration.first_name} ${registration.last_name} is verwijderd.`;
+    } else if (field(form, "action") === "resend" && registration.status !== "afgemeld") {
+      const sent = await sendConfirmation(lecture, registration);
+      if (sent) await markEmailSent(registration.id);
+      message = sent ? `Bevestiging opnieuw verstuurd naar ${registration.email}.` : "Versturen is mislukt.";
+    }
+  }
+}
+
+const rows = await getRegistrations(lecture.id);
+const counts = countRegistrations(rows);
+const label = (r: (typeof rows)[number]) => (r.status === "online" ? "Online" : r.status === "afgemeld" ? "Afgemeld" : r.dinner ? "Fysiek + diner" : "Fysiek");
+const when = (iso: string) =>
+  new Intl.DateTimeFormat("nl-NL", { dateStyle: "short", timeStyle: "short", timeZone: "Europe/Amsterdam" }).format(new Date(`${iso.replace(" ", "T")}Z`));
+---
+
+<Admin title={`Aanmeldingen ${lecture.speaker_name}`}>
+  <h1>Aanmeldingen</h1>
+  <p>{lecture.speaker_name} · {longDate(lecture.date)} · <a href={`/admin/lezingen/${lecture.id}`}>Lezing bewerken</a></p>
+
+  <div class="stats">
+    <div class="stat"><strong>{counts.fysiek}</strong>fysiek</div>
+    <div class="stat"><strong>{counts.dinner}</strong>eten mee</div>
+    <div class="stat"><strong>{counts.online}</strong>online</div>
+    <div class="stat"><strong>{counts.afgemeld}</strong>afgemeld</div>
+  </div>
+  <p><a class="button secondary" href={`/admin/lezingen/${lecture.id}/aanmeldingen.csv`}>⬇️ Download CSV</a></p>
+  {message && <p class="notice success">{message}</p>}
+
+  {rows.length === 0 ? (
+    <p>Nog geen aanmeldingen.</p>
+  ) : (
+    <div class="table-wrap">
+      <table class="data">
+        <thead><tr><th>Naam</th><th>E-mail</th><th>Keuze</th><th>Aangemeld</th><th>Mail</th><th></th></tr></thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr class:list={{ muted: r.status === "afgemeld" }}>
+              <td>{r.first_name} {r.last_name}</td>
+              <td>{r.email ?? "–"}</td>
+              <td>{label(r)}</td>
+              <td>{when(r.updated_at)}</td>
+              <td>{r.email_sent_at ? "✓" : "–"}</td>
+              <td>
+                {r.email && r.status !== "afgemeld" && (
+                  <form method="post" class="inline">
+                    <input type="hidden" name="id" value={r.id} />
+                    <button class="link" name="action" value="resend">Mail opnieuw</button>
+                  </form>
+                )}{" "}
+                <form method="post" class="inline" onsubmit="return confirm('Deze aanmelding verwijderen?')">
+                  <input type="hidden" name="id" value={r.id} />
+                  <button class="link danger" name="action" value="delete">Verwijder</button>
+                </form>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )}
+</Admin>

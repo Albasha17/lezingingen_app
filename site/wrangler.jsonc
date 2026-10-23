@@ -11,5 +11,19 @@
       "database_id": "00000000-0000-0000-0000-000000000000",
       "migrations_dir": "migrations"
     }
-  ]
+  ],
+  "r2_buckets": [
+    { "binding": "PHOTOS", "bucket_name": "studiegroep-photos", "jurisdiction": "eu" }
+  ],
+  "vars": {
+    "SITE_URL": "https://studiegroep.eu",
+    "MAIL_FROM": "EU Studiegroep <aanmelden@studiegroep.eu>",
+    "MAIL_REPLY_TO": "eustudiegroep@gmail.com",
+    // Cloudflare Access (Zero Trust > Access > Applications > studiegroep admin)
+    "ACCESS_TEAM_DOMAIN": "https://REPLACE-ME.cloudflareaccess.com",
+    "ACCESS_AUD": "",
+    // Turnstile site key (public); the secret goes in TURNSTILE_SECRET_KEY
+    "TURNSTILE_SITE_KEY": ""
+  }
+  // Secrets (wrangler secret put ...): RESEND_API_KEY, TURNSTILE_SECRET_KEY, CALENDAR_FEED_TOKEN
 }

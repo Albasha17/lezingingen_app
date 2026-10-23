@@ -1,0 +1,56 @@
+---
+import { env } from "cloudflare:workers";
+import LectureForm from "../../../../components/LectureForm.astro";
+import Admin from "../../../../layouts/Admin.astro";
+import { deleteLecture, getLecture, updateLecture } from "../../../../lib/db";
+import { longDate } from "../../../../lib/format";
+import { field } from "../../../../lib/forms";
+import { parseLectureForm } from "../../../../lib/lecture-form";
+
+let lecture = await getLecture(Number(Astro.params.id));
+if (!lecture) return new Response(null, { status: 404 });
+
+let error = "";
+let saved = Astro.url.searchParams.has("opgeslagen");
+
+if (Astro.request.method === "POST") {
+  const form = await Astro.request.formData();
+  if (field(form, "action") === "delete") {
+    if (field(form, "confirm") !== lecture.speaker_name) {
+      error = "Typ de naam van de spreker over om te verwijderen.";
+    } else {
+      await deleteLecture(lecture.id);
+      return Astro.redirect("/admin", 303);
+    }
+  } else {
+    const result = await parseLectureForm(form, lecture);
+    if ("error" in result) {
+      error = result.error;
+    } else {
+      await updateLecture(lecture.id, result.input);
+      lecture = (await getLecture(lecture.id))!;
+      saved = true;
+    }
+  }
+}
+const publicUrl = `${env.SITE_URL}/lezingen/${lecture.slug}`;
+---
+
+<Admin title={lecture.speaker_name}>
+  <h1>{lecture.speaker_name}</h1>
+  <p>{longDate(lecture.date)} · <a href={`/lezingen/${lecture.slug}`}>Bekijk pagina</a> · <a href={`/admin/lezingen/${lecture.id}/aanmeldingen`}>Aanmeldingen</a> · <a href={`/admin/lezingen/${lecture.id}/mailchimp`}>Mailchimp-HTML</a></p>
+  <p>Aanmeldlink: <code>{publicUrl}</code></p>
+  {saved && <p class="notice success">✅ Opgeslagen. De website is bijgewerkt.</p>}
+  {error && <p class="notice error">{error}</p>}
+  <LectureForm lecture={lecture} submitLabel="💾 Opslaan" />
+
+  <details>
+    <summary>Lezing verwijderen</summary>
+    <form method="post" class="admin">
+      <input type="hidden" name="action" value="delete" />
+      <p>Dit verwijdert de lezing én alle aanmeldingen. Typ <strong>{lecture.speaker_name}</strong> om te bevestigen.</p>
+      <input name="confirm" autocomplete="off" />
+      <button type="submit" class="button danger">Verwijderen</button>
+    </form>
+  </details>
+</Admin>

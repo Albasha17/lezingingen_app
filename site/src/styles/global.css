@@ -81,3 +81,50 @@ footer.site { border-top: 1px solid var(--border); color: var(--muted); font-siz
   h1 { font-size: 1.6rem; }
   header.site .container { flex-direction: column; align-items: flex-start; gap: 6px; }
 }
+
+/* Forms */
+form.signup, form.admin { display: grid; gap: 14px; margin: 16px 0; }
+fieldset { border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 16px; margin: 0; }
+legend { font-weight: 600; padding: 0 4px; }
+label { display: grid; gap: 4px; font-weight: 500; }
+label.choice { display: flex; gap: 10px; align-items: center; font-weight: 400; padding: 6px 0; }
+input, textarea, select {
+  font: inherit;
+  padding: 9px 11px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  width: 100%;
+  background: var(--bg);
+  color: var(--text);
+}
+input[type="radio"], input[type="checkbox"] { width: auto; }
+textarea { min-height: 140px; }
+.row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+button.button { border: none; cursor: pointer; font: inherit; font-weight: 600; justify-self: start; }
+button.danger, .button.danger { background: #b42318; }
+.buttons { display: flex; flex-wrap: wrap; gap: 10px; }
+.notice.success { background: #e7f6ec; }
+.notice.error { background: #fdecea; color: #8a1c13; margin: 0; }
+
+@media (max-width: 520px) {
+  .row { grid-template-columns: 1fr; }
+}
+
+/* Admin */
+.container.wide { max-width: 1100px; }
+table.data { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+table.data th, table.data td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+table.data th { background: var(--bg-alt); font-weight: 600; }
+table.data tr.muted td { color: var(--muted); }
+.table-wrap { overflow-x: auto; }
+.stats { display: flex; flex-wrap: wrap; gap: 12px; margin: 16px 0; }
+.stat { border: 1px solid var(--border); border-radius: var(--radius); padding: 10px 16px; min-width: 110px; }
+.stat strong { display: block; font-size: 1.6rem; color: var(--blue); }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; }
+form.inline { display: inline; }
+button.link { background: none; border: none; color: var(--blue); text-decoration: underline; cursor: pointer; font: inherit; padding: 0; }
+button.link.danger { color: #b42318; }
+.thumb { max-width: 240px; border-radius: 6px; display: block; }
+@media (max-width: 760px) { .grid-2 { grid-template-columns: 1fr; } }
+.grid-2 > div { display: grid; gap: 12px; align-content: start; }
+.grid-2 h3 { margin: 12px 0 0; }

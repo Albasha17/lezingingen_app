@@ -7,15 +7,17 @@
     "build": "astro build",
     "preview": "astro preview",
     "db:migrate:local": "wrangler d1 migrations apply studiegroep --local",
-    "db:migrate:remote": "wrangler d1 migrations apply studiegroep --remote"
+    "db:migrate:remote": "wrangler d1 migrations apply studiegroep --remote",
+    "types": "wrangler types --strict-vars=false",
+    "check": "astro check"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^14.4.2",
     "astro": "^7.4.1"
   },
   "devDependencies": {
-    "@cloudflare/workers-types": "^5.20261023.1",
-    "typescript": "^7.0.2",
+    "@astrojs/check": "^0.9.12",
+    "typescript": "^6.0.3",
     "wrangler": "^4.152.0"
   }
 }

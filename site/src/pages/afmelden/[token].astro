@@ -1,0 +1,36 @@
+---
+import Base from "../../layouts/Base.astro";
+import { cancelRegistration, getLecture, getRegistrationByToken } from "../../lib/db";
+import { longDate } from "../../lib/format";
+
+const registration = await getRegistrationByToken(Astro.params.token ?? "");
+const lecture = registration ? await getLecture(registration.lecture_id) : null;
+if (!registration || !lecture) {
+  return new Response(null, { status: 404 });
+}
+
+// Cancelling needs a button press, so link previews and mail scanners opening the link change nothing.
+let cancelled = registration.status === "afgemeld";
+if (Astro.request.method === "POST" && !cancelled) {
+  await cancelRegistration(registration.id);
+  cancelled = true;
+}
+---
+
+<Base title="Afmelden · EU Studiegroep">
+  <h1>Afmelden</h1>
+  {cancelled ? (
+    <p class="notice success">
+      Je bent afgemeld voor de lezing van {lecture.speaker_name} op {longDate(lecture.date)}. Toch weer van de partij?{" "}
+      <a href={`/lezingen/${lecture.slug}#aanmelden`}>Meld je opnieuw aan</a>.
+    </p>
+  ) : (
+    <form method="post" class="signup">
+      <p>
+        Hoi {registration.first_name}, wil je je afmelden voor de lezing van <strong>{lecture.speaker_name}</strong> op{" "}
+        <strong>{longDate(lecture.date)}</strong>?
+      </p>
+      <button type="submit" class="button danger">Ja, meld mij af</button>
+    </form>
+  )}
+</Base>
