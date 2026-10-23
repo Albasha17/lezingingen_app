@@ -1,0 +1,83 @@
+:root {
+  --blue: #0e3a73;
+  --blue-soft: #e8eef7;
+  --yellow: #ffcc00;
+  --text: #1f2933;
+  --muted: #5f6b7a;
+  --border: #dde3ea;
+  --bg: #ffffff;
+  --bg-alt: #f6f8fb;
+  --dinner: #ff9800;
+  --lecture: #4caf50;
+  --radius: 10px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, Arial, sans-serif;
+  line-height: 1.6;
+  color: var(--text);
+  background: var(--bg);
+}
+
+a { color: var(--blue); }
+
+.container { max-width: 760px; margin: 0 auto; padding: 0 16px; }
+
+header.site {
+  background: var(--blue);
+  color: #fff;
+}
+header.site .container { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding-top: 14px; padding-bottom: 14px; }
+header.site a { color: #fff; text-decoration: none; }
+header.site .brand { font-weight: 700; font-size: 1.15rem; }
+header.site nav { display: flex; gap: 18px; font-size: 0.95rem; }
+
+main { padding: 32px 0 48px; }
+
+h1, h2, h3 { line-height: 1.25; color: var(--blue); }
+h1 { font-size: 2rem; margin: 0 0 8px; }
+
+.hero { background: var(--bg-alt); border-bottom: 1px solid var(--border); padding: 40px 0; }
+.hero p { font-size: 1.1rem; color: var(--muted); max-width: 60ch; }
+
+.card {
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin: 16px 0;
+  background: var(--bg);
+}
+.card.next { border-left: 6px solid var(--yellow); }
+.card h3 { margin: 0 0 4px; }
+.card .meta { color: var(--muted); margin: 0 0 8px; }
+
+.program { border: 1px solid var(--border); border-left: 4px solid var(--lecture); border-radius: 6px; padding: 14px 16px; margin: 12px 0; }
+.program.dinner { border-left-color: var(--dinner); }
+.program p { margin: 2px 0; }
+
+.speaker-photo { width: 100%; border-radius: var(--radius); margin: 16px 0; }
+
+.button {
+  display: inline-block;
+  background: var(--blue);
+  color: #fff;
+  padding: 10px 18px;
+  border-radius: 6px;
+  text-decoration: none;
+  font-weight: 600;
+}
+.button.secondary { background: #6c757d; }
+
+.notice { background: var(--blue-soft); border-radius: var(--radius); padding: 14px 16px; }
+
+ul.prices { padding-left: 20px; }
+
+footer.site { border-top: 1px solid var(--border); color: var(--muted); font-size: 0.9rem; padding: 20px 0 32px; }
+
+@media (max-width: 520px) {
+  h1 { font-size: 1.6rem; }
+  header.site .container { flex-direction: column; align-items: flex-start; gap: 6px; }
+}

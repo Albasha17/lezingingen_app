@@ -1,0 +1,18 @@
+---
+import type { Lecture } from "../lib/db";
+import { longDate } from "../lib/format";
+
+interface Props {
+  lecture: Lecture;
+  highlight?: boolean;
+}
+
+const { lecture, highlight = false } = Astro.props;
+---
+
+<article class:list={["card", { next: highlight }]}>
+  <p class="meta">{longDate(lecture.date)} · {lecture.time_dinner ? `diner ${lecture.time_dinner}, ` : ""}lezing {lecture.time_lecture}</p>
+  <h3><a href={`/lezingen/${lecture.slug}`}>{lecture.speaker_name}</a></h3>
+  {lecture.speaker_role && <p class="meta"><em>{lecture.speaker_role}</em></p>}
+  {highlight && <a class="button" href={`/lezingen/${lecture.slug}#aanmelden`}>Meld je aan</a>}
+</article>

@@ -1,0 +1,58 @@
+---
+import Base from "../../layouts/Base.astro";
+import { getLectureBySlug, getSettings, todayAmsterdam } from "../../lib/db";
+import { imageUrl, lectureTitle, longDate, mapsUrl } from "../../lib/format";
+
+const lecture = await getLectureBySlug(Astro.params.slug ?? "");
+if (!lecture) {
+  return new Response(null, { status: 404 });
+}
+
+const settings = await getSettings();
+const isPast = lecture.date < todayAmsterdam();
+const photo = imageUrl(lecture);
+const dinnerMaps = mapsUrl(lecture.dinner_maps_url, lecture.dinner_name, lecture.dinner_address);
+const lectureMaps = mapsUrl(lecture.lecture_maps_url, lecture.lecture_name, lecture.lecture_address);
+---
+
+<Base title={`${lecture.speaker_name} · EU Studiegroep`} description={lecture.speaker_role}>
+  <p class="meta">🇪🇺 {lectureTitle(lecture.date)}</p>
+  <h1>{lecture.speaker_name}</h1>
+  {lecture.speaker_role && <p><em>{lecture.speaker_role}</em></p>}
+  {photo && <img class="speaker-photo" src={photo} alt={lecture.speaker_name} />}
+  {lecture.speaker_bio.split(/\n{2,}/).map((para) => <p>{para}</p>)}
+  {lecture.speaker_linkedin && <p><a class="button secondary" href={lecture.speaker_linkedin}>👔 LinkedIn profiel</a></p>}
+
+  <h2>📅 {longDate(lecture.date)}</h2>
+  {lecture.time_dinner && lecture.dinner_name && (
+    <div class="program dinner">
+      <p><strong>🍕 Diner</strong></p>
+      <p><strong>🕕 {lecture.time_dinner}</strong> (aanvang)</p>
+      <p>📍 <strong>{lecture.dinner_name}</strong> ({lecture.dinner_address} · <a href={dinnerMaps}>Route</a>)</p>
+    </div>
+  )}
+  <div class="program">
+    <p><strong>🎤 Lezing</strong></p>
+    <p><strong>🕢 {lecture.time_lecture}</strong> (aanvang)</p>
+    <p>📍 <strong>{lecture.lecture_name}</strong> ({lecture.lecture_address} · <a href={lectureMaps}>Route</a>)</p>
+    {lecture.video_url && <p>💻 Ook online te volgen via een videolink, die je na aanmelding ontvangt.</p>}
+  </div>
+
+  {!isPast && (
+    <>
+      <h2>💶 Kosten</h2>
+      <p>
+        Per lezing € {settings.price_single ?? "10"},-, half seizoen € {settings.price_half_season ?? "40"},-, heel seizoen
+        € {settings.price_full_season ?? "60"},-.
+      </p>
+      {lecture.payment_url && <a class="button secondary" href={lecture.payment_url}>💳 Betaalverzoek openen</a>}
+
+      <h2 id="aanmelden">📝 Aanmelden</h2>
+      {lecture.signup_open ? (
+        <p class="notice">Het aanmeldformulier komt hier in de volgende stap van de bouw.</p>
+      ) : (
+        <p class="notice">Aanmelden is gesloten.</p>
+      )}
+    </>
+  )}
+</Base>
