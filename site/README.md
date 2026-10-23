@@ -30,7 +30,7 @@ Locally `/admin` treats `DEV_ADMIN_EMAIL` as signed in. Production builds ignore
 6. Organiser calendar: `npx wrangler secret put CALENDAR_FEED_TOKEN` with a long random value
    (for example `openssl rand -hex 24`). The feed link then shows on /admin/instellingen.
 7. Deploy: `npm run build && npx wrangler deploy`, and add `studiegroep.eu` as a custom domain on the
-   `studiegroep` Worker (Workers & Pages > studiegroep > Settings > Domains).
+   `lezingingen-app` Worker (Workers & Pages > lezingingen-app > Settings > Domains).
 8. Admin login: in Zero Trust > Access > Applications, add a self-hosted application for `studiegroep.eu/admin`
    with a policy "Allow, Emails ending in" anything (or "Everyone") and the One-time PIN login method. Copy the
    application's AUD tag into `ACCESS_AUD` and the team domain (`https://<team>.cloudflareaccess.com`) into
