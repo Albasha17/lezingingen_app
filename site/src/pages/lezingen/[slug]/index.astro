@@ -91,7 +91,7 @@ if (Astro.request.method === "POST" && signupOpen) {
     <p><strong>🎤 Lezing</strong></p>
     <p><strong>🕢 {lecture.time_lecture}</strong> (aanvang)</p>
     <p>📍 <strong>{lecture.lecture_name}</strong> ({lecture.lecture_address} · <a href={lectureMaps}>Route</a>)</p>
-    {lecture.video_url && <p>💻 Ook online te volgen via een videolink, die je na aanmelding ontvangt.</p>}
+    {Boolean(lecture.online) && <p>💻 Ook online te volgen via een videolink, die je na aanmelding ontvangt.</p>}
   </div>
 
   {!isPast && (
@@ -141,7 +141,7 @@ if (Astro.request.method === "POST" && signupOpen) {
               <input type="radio" name="keuze" value="lezing" required checked={values.keuze === "lezing"} />
               Fysiek, alleen de lezing (start {lecture.time_lecture})
             </label>
-            {lecture.video_url && (
+            {Boolean(lecture.online) && (
               <label class="choice">
                 <input type="radio" name="keuze" value="online" required checked={values.keuze === "online"} />
                 Online, via de videolink

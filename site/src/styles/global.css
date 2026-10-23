@@ -128,3 +128,5 @@ button.link.danger { color: #b42318; }
 @media (max-width: 760px) { .grid-2 { grid-template-columns: 1fr; } }
 .grid-2 > div { display: grid; gap: 12px; align-content: start; }
 .grid-2 h3 { margin: 12px 0 0; }
+
+[hidden] { display: none !important; }

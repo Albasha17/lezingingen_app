@@ -47,10 +47,19 @@ const photo = lecture.image_key ? imageUrl(lecture as Lecture) : null;
       <label>Google Maps-link (optioneel)<input name="lecture_maps_url" value={lecture.lecture_maps_url ?? ""} /></label>
 
       <h3>🔗 Links</h3>
-      <label>Google Meet / videolink (leeg = geen online optie)<input name="video_url" value={lecture.video_url ?? ""} /></label>
+      <label class="choice"><input type="checkbox" name="online" value="1" id="online-toggle" checked={Boolean(lecture.online)} /> Ook online te volgen</label>
+      <label id="video-field" hidden={!lecture.online}>Streamlink (Google Meet e.d.; mag later)<input name="video_url" value={lecture.video_url ?? ""} /></label>
       <label>Betaalverzoek (Bunq/Tikkie)<input name="payment_url" value={lecture.payment_url ?? ""} /></label>
       <label class="choice"><input type="checkbox" name="signup_open" value="1" checked={lecture.signup_open !== 0} /> Aanmelden staat open</label>
     </div>
   </div>
   <button type="submit" class="button">{submitLabel}</button>
 </form>
+
+<script>
+  const toggle = document.getElementById("online-toggle") as HTMLInputElement | null;
+  const videoField = document.getElementById("video-field");
+  toggle?.addEventListener("change", () => {
+    if (videoField) videoField.hidden = !toggle.checked;
+  });
+</script>

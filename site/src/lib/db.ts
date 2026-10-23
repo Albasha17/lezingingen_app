@@ -18,6 +18,7 @@ export interface Lecture {
   lecture_name: string;
   lecture_address: string;
   lecture_maps_url: string | null;
+  online: number;
   video_url: string | null;
   payment_url: string | null;
   signup_open: number;
@@ -179,7 +180,7 @@ export type LectureInput = Omit<Lecture, "id">;
 const LECTURE_COLUMNS = [
   "slug", "date", "time_dinner", "time_lecture", "time_end", "speaker_name", "speaker_role", "speaker_bio",
   "speaker_linkedin", "image_key", "dinner_name", "dinner_address", "dinner_maps_url", "lecture_name",
-  "lecture_address", "lecture_maps_url", "video_url", "payment_url", "signup_open",
+  "lecture_address", "lecture_maps_url", "online", "video_url", "payment_url", "signup_open",
 ] as const satisfies readonly (keyof LectureInput)[];
 
 export async function createLecture(input: LectureInput): Promise<Lecture> {
