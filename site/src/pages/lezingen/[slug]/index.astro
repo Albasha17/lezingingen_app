@@ -100,7 +100,7 @@ if (Astro.request.method === "POST" && signupOpen) {
         <span class="time">{lecture.time_lecture}</span>
         <p><strong>Lezing in {lecture.lecture_name}</strong><br /><span class="muted">{lecture.lecture_address} · </span><a href={lectureMaps}>Route</a></p>
       </div>
-      {lecture.video_url && (
+      {Boolean(lecture.online) && (
         <div class="program online">
           <span class="time">Online</span>
           <p><strong>Ook online te volgen</strong><br /><span class="muted">De videolink krijg je na aanmelding per mail.</span></p>

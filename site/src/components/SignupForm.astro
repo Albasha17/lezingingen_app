@@ -30,7 +30,7 @@ const hasDinner = Boolean(lecture.time_dinner && lecture.dinner_name);
         <input type="radio" name="keuze" value="lezing" required checked={values.keuze === "lezing"} />
         Alleen de lezing ({lecture.time_lecture})
       </label>
-      {lecture.video_url && (
+      {Boolean(lecture.online) && (
         <label class="choice">
           <input type="radio" name="keuze" value="online" required checked={values.keuze === "online"} />
           Online meekijken

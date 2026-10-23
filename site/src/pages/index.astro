@@ -55,7 +55,7 @@ const hasDinner = Boolean(next?.time_dinner && next?.dinner_name);
             <span class="time">{next.time_lecture}</span>
             <p><strong>Lezing in {next.lecture_name}</strong><br /><span class="muted">{next.lecture_address} · </span><a href={mapsUrl(next.lecture_maps_url, next.lecture_name, next.lecture_address)}>Route</a></p>
           </div>
-          {next.video_url && (
+          {Boolean(next.online) && (
             <div class="program online">
               <span class="time">Online</span>
               <p><strong>Of kijk thuis mee</strong><br /><span class="muted">De link staat in je bevestigingsmail.</span></p>
