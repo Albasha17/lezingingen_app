@@ -1,0 +1,54 @@
+---
+import { env } from "cloudflare:workers";
+import type { Lecture } from "../lib/db";
+import { shortDate } from "../lib/format";
+
+interface Props {
+  lecture: Lecture;
+  values?: { keuze: string; first_name: string; last_name: string; email: string };
+  error?: string;
+}
+
+const { lecture, values = { keuze: "", first_name: "", last_name: "", email: "" }, error = "" } = Astro.props;
+const hasDinner = Boolean(lecture.time_dinner && lecture.dinner_name);
+---
+
+{env.TURNSTILE_SITE_KEY && <script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>}
+<form method="post" action={`/lezingen/${lecture.slug}#aanmelden`} class="signup glass">
+  <h2>Schuif aan</h2>
+  {error && <p class="notice error" role="alert">{error}</p>}
+  <fieldset>
+    <legend>Hoe ben je erbij op {shortDate(lecture.date)}?</legend>
+    <div class="choices">
+      {hasDinner && (
+        <label class="choice">
+          <input type="radio" name="keuze" value="diner" required checked={values.keuze === "diner"} />
+          Pizza vooraf + lezing ({lecture.time_dinner})
+        </label>
+      )}
+      <label class="choice">
+        <input type="radio" name="keuze" value="lezing" required checked={values.keuze === "lezing"} />
+        Alleen de lezing ({lecture.time_lecture})
+      </label>
+      {Boolean(lecture.online) && (
+        <label class="choice">
+          <input type="radio" name="keuze" value="online" required checked={values.keuze === "online"} />
+          Online meekijken
+        </label>
+      )}
+      <label class="choice">
+        <input type="radio" name="keuze" value="afgemeld" required checked={values.keuze === "afgemeld"} />
+        Ik kan niet, ik meld me af
+      </label>
+    </div>
+  </fieldset>
+  <div class="row">
+    <label>Voornaam<input name="first_name" autocomplete="given-name" required value={values.first_name} /></label>
+    <label>Achternaam<input name="last_name" autocomplete="family-name" required value={values.last_name} /></label>
+  </div>
+  <label>E-mailadres (voor bevestiging en eventuele videolink; optioneel bij afmelden)
+    <input type="email" name="email" autocomplete="email" placeholder="jouw@email.nl" value={values.email} />
+  </label>
+  {env.TURNSTILE_SITE_KEY && <div class="cf-turnstile" data-sitekey={env.TURNSTILE_SITE_KEY} data-language="nl" data-theme="dark"></div>}
+  <button type="submit" class="button">Verstuur</button>
+</form>

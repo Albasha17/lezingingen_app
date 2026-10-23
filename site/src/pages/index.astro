@@ -1,50 +1,131 @@
 ---
 import Base from "../layouts/Base.astro";
 import LectureCard from "../components/LectureCard.astro";
+import SignupForm from "../components/SignupForm.astro";
 import { getSettings, getUpcomingLectures } from "../lib/db";
+import { imageUrl, longDate, mapsUrl, shortDate } from "../lib/format";
 
 const [upcoming, settings] = await Promise.all([getUpcomingLectures(), getSettings()]);
 const [next, ...later] = upcoming;
 const contact = settings.contact_email ?? "info@studiegroep.eu";
+const photo = next ? imageUrl(next) : null;
+const hasDinner = Boolean(next?.time_dinner && next?.dinner_name);
 ---
 
-<Base title="EU Studiegroep">
-  <section class="hero" slot="hero">
-    <div class="container">
-      <h1>🇪🇺 EU Studiegroep</h1>
-      <p>
-        Elke maand een lezing over Europa door iemand die er dagelijks mee werkt, in Amsterdam en online. Vooraf eten we
-        samen een pizza.
-      </p>
-      {next && <a class="button" href={`/lezingen/${next.slug}#aanmelden`}>Aanmelden voor de volgende lezing</a>}
+<Base title="EU Studiegroep" tall>
+  <div class="hero" slot="hero">
+    <div class="hero-text">
+      <p class="eyebrow">Amsterdam · sinds 2020</p>
+      <h1>Europa aan de gracht.</h1>
+      <p class="lead">Elke maand een lezing over een actueel thema met een Europese invalshoek, in Amsterdam. Vooraf eten we samen een pizza.</p>
+      <div class="buttons">
+        {next && Boolean(next.signup_open) && <a class="button" href="#aanmelden">Schuif aan op {shortDate(next.date)}</a>}
+        <a class="button secondary" href="#over">Over de Studiegroep</a>
+      </div>
     </div>
-  </section>
+    {next && (
+      <article class="next-card glass">
+        {photo && <img class="photo" src={photo} alt={next.speaker_name} />}
+        <div class="body">
+          <span class="date">{longDate(next.date)}</span>
+          <h2><a href={`/lezingen/${next.slug}`}>{next.speaker_name}</a></h2>
+          {next.speaker_role && <span class="muted">{next.speaker_role}</span>}
+        </div>
+        <div class="times">
+          {hasDinner && <div><span>Pizza</span><strong>{next.time_dinner}</strong></div>}
+          <div><span>Lezing</span><strong>{next.time_lecture}</strong></div>
+          <div><span>Tot</span><strong>{next.time_end}</strong></div>
+        </div>
+      </article>
+    )}
+  </div>
 
-  <section id="lezingen">
-    <h2>Volgende lezing</h2>
-    {next ? <LectureCard lecture={next} highlight /> : <p class="notice">De volgende lezing wordt binnenkort bekendgemaakt.</p>}
+  <section id="programma">
+    {next ? (
+      <div class="split">
+        <div class="stack">
+          <h2>Zo ziet de avond eruit</h2>
+          {hasDinner && (
+            <div class="program">
+              <span class="time">{next.time_dinner}</span>
+              <p><strong>Pizza bij {next.dinner_name}</strong><br /><span class="muted">{next.dinner_address} · </span><a href={mapsUrl(next.dinner_maps_url, next.dinner_name, next.dinner_address)}>Route</a></p>
+            </div>
+          )}
+          <div class="program">
+            <span class="time">{next.time_lecture}</span>
+            <p><strong>Lezing in {next.lecture_name}</strong><br /><span class="muted">{next.lecture_address} · </span><a href={mapsUrl(next.lecture_maps_url, next.lecture_name, next.lecture_address)}>Route</a></p>
+          </div>
+          {Boolean(next.online) && (
+            <div class="program online">
+              <span class="time">Online</span>
+              <p><strong>Of kijk thuis mee</strong><br /><span class="muted">De link staat in je bevestigingsmail.</span></p>
+            </div>
+          )}
+          <p><a href={`/lezingen/${next.slug}`}>Meer over {next.speaker_name}</a></p>
+        </div>
+        <div id="aanmelden">
+          {next.signup_open ? <SignupForm lecture={next} /> : <p class="notice">Aanmelden voor deze avond is gesloten.</p>}
+        </div>
+      </div>
+    ) : (
+      <p class="notice">De volgende lezing wordt binnenkort bekendgemaakt.</p>
+    )}
 
     {later.length > 0 && (
-      <>
+      <div style="margin-top: 40px">
         <h2>Daarna</h2>
-        {later.map((lecture) => <LectureCard lecture={lecture} />)}
-      </>
+        {later.map((lecture) => <LectureCard lecture={lecture} signup />)}
+      </div>
     )}
   </section>
 
-  <section id="kosten">
-    <h2>Kosten</h2>
-    <p>Om alles te kunnen bekostigen vragen we om een kleine bijdrage.</p>
-    <ul class="prices">
-      <li><strong>Per lezing:</strong> € {settings.price_single ?? "10"},-</li>
-      <li><strong>Half seizoen (5 lezingen):</strong> € {settings.price_half_season ?? "40"},-</li>
-      <li><strong>Heel seizoen (10 lezingen):</strong> € {settings.price_full_season ?? "60"},-</li>
-    </ul>
+  <section id="over" class="stack">
+    <div class="split">
+      <div class="stack">
+        <p class="eyebrow">Over ons</p>
+        <h2>Samen nadenken over Europa, met wie er verstand van heeft</h2>
+      </div>
+      <div class="bio">
+        <p>De EU Studiegroep is in 2020 opgericht door een tiental mensen uit verschillende vakgebieden, allemaal betrokken bij Europa. Ze wilden hun denken over Europa verder ontwikkelen in gesprek met experts.</p>
+        <p>Elke maand presenteert een Europa-specialist een onderwerp. Die specialisten komen uit alle hoeken: politiek en politicologie, bestuurs- en bedrijfskunde, internationale financiering, filosofie, journalistiek, kunst, vervoer, diplomatie en meer.</p>
+      </div>
+    </div>
+    <div class="steps">
+      <div class="panel"><span class="num">1</span><strong>Column</strong><span class="muted">Een van de leden leest een zelfgeschreven column voor.</span></div>
+      <div class="panel"><span class="num">2</span><strong>Lezing</strong><span class="muted">De spreker heeft 30 à 40 minuten het woord.</span></div>
+      <div class="panel"><span class="num">3</span><strong>Discussie</strong><span class="muted">Daarna is er volop ruimte voor vragen en gesprek.</span></div>
+    </div>
+    <div class="panel callout">
+      <strong>Chatham House Rule.</strong> Wat er besproken wordt mag je delen, maar uitspraken worden niet aan personen toegeschreven. Er worden geen notulen gemaakt; we bewaren alleen een paar korte take-aways.
+    </div>
+    <div class="split" style="gap: 14px">
+      <div class="panel">
+        <h3>Wie we zijn</h3>
+        <p class="muted">De Studiegroep telt ruim 100 leden: een kleurrijke groep mannen en vrouwen van 20 tot 80 jaar, met de meest uiteenlopende beroepen.</p>
+        <p class="muted">Een zeskoppig team organiseert de avonden. Suggesties en wensen van leden zijn altijd welkom.</p>
+      </div>
+      <div class="panel highlight">
+        <h3>Lid worden</h3>
+        <p class="muted">Laat het weten aan onze voorzitter, Theo Doreleijers. Na een kennismaking zetten we je op de ledenlijst.</p>
+        <p class="muted">Leden horen van ons via Signal en e-mail. Elke uitnodiging bevat een link om je aan te melden voor de volgende avond, en desgewenst voor de maaltijd vooraf met de spreker.</p>
+        <a class="button" href={`mailto:${contact}?subject=${encodeURIComponent("Lid worden van de EU Studiegroep")}`}>Mail de voorzitter</a>
+      </div>
+    </div>
   </section>
 
-  <section id="contact">
+  <section id="kosten" class="stack">
+    <h2>Contributie</h2>
+    <p class="muted" style="margin: 0">Hiermee betalen we de zaalhuur en voor de spreker de maaltijd, reiskosten en een boekenbon. Studenten krijgen korting.</p>
+    <div class="prices">
+      <div class="panel"><p class="muted">Per avond</p><p class="amount">€ {settings.price_single ?? "10"}</p></div>
+      <div class="panel"><p class="muted">Half seizoen · 5 avonden</p><p class="amount">€ {settings.price_half_season ?? "40"}</p></div>
+      <div class="panel highlight"><p class="muted">Heel seizoen · 10 avonden</p><p class="amount">€ {settings.price_full_season ?? "60"}</p></div>
+    </div>
+  </section>
+
+  <section id="contact" class="stack">
     <h2>Vragen?</h2>
-    <p>Heb je vragen of lukt het aanmelden niet? Stuur ons gerust een mailtje.</p>
-    <a class="button secondary" href={`mailto:${contact}`}>📧 {contact}</a>
+    <p class="muted" style="margin: 0">Heb je vragen of lukt het aanmelden niet? Stuur ons gerust een mailtje.</p>
+    <p style="margin: 0"><a class="button secondary" href={`mailto:${contact}`}>{contact}</a></p>
   </section>
 </Base>

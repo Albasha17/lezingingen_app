@@ -26,7 +26,7 @@ const feedUrl = env.CALENDAR_FEED_TOKEN ? `${env.SITE_URL}/feed/${env.CALENDAR_F
 
 <Admin title="Instellingen">
   <h1>Instellingen</h1>
-  {saved && <p class="notice success">✅ Opgeslagen.</p>}
+  {saved && <p class="notice success">Opgeslagen.</p>}
   {error && <p class="notice error">{error}</p>}
   <form method="post" class="admin">
     <label>Contactadres op de website<input type="email" name="contact_email" value={settings.contact_email} /></label>

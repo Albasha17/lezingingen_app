@@ -18,14 +18,18 @@ if (Astro.request.method === "POST" && !cancelled) {
 ---
 
 <Base title="Afmelden · EU Studiegroep">
-  <h1>Afmelden</h1>
+  <div class="page-head" slot="hero">
+    <p class="eyebrow">{longDate(lecture.date)}</p>
+    <h1>Afmelden</h1>
+  </div>
+  <div class="container narrow" style="padding: 0">
   {cancelled ? (
     <p class="notice success">
       Je bent afgemeld voor de lezing van {lecture.speaker_name} op {longDate(lecture.date)}. Toch weer van de partij?{" "}
       <a href={`/lezingen/${lecture.slug}#aanmelden`}>Meld je opnieuw aan</a>.
     </p>
   ) : (
-    <form method="post" class="signup">
+    <form method="post" class="signup glass">
       <p>
         Hoi {registration.first_name}, wil je je afmelden voor de lezing van <strong>{lecture.speaker_name}</strong> op{" "}
         <strong>{longDate(lecture.date)}</strong>?
@@ -33,4 +37,5 @@ if (Astro.request.method === "POST" && !cancelled) {
       <button type="submit" class="button danger">Ja, meld mij af</button>
     </form>
   )}
+  </div>
 </Base>

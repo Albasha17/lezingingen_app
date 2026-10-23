@@ -40,7 +40,7 @@ const publicUrl = `${env.SITE_URL}/lezingen/${lecture.slug}`;
   <h1>{lecture.speaker_name}</h1>
   <p>{longDate(lecture.date)} · <a href={`/lezingen/${lecture.slug}`}>Bekijk pagina</a> · <a href={`/admin/lezingen/${lecture.id}/aanmeldingen`}>Aanmeldingen</a> · <a href={`/admin/lezingen/${lecture.id}/mailchimp`}>Mailchimp-HTML</a></p>
   <p>Aanmeldlink: <code>{publicUrl}</code></p>
-  {saved && <p class="notice success">✅ Opgeslagen. De website is bijgewerkt.</p>}
+  {saved && <p class="notice success">Opgeslagen. De website is bijgewerkt.</p>}
   {error && <p class="notice error">{error}</p>}
   <LectureForm lecture={lecture} submitLabel="💾 Opslaan" />
 

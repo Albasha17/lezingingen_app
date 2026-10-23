@@ -41,7 +41,7 @@ const when = (iso: string) =>
     <div class="stat"><strong>{counts.online}</strong>online</div>
     <div class="stat"><strong>{counts.afgemeld}</strong>afgemeld</div>
   </div>
-  <p><a class="button secondary" href={`/admin/lezingen/${lecture.id}/aanmeldingen.csv`}>⬇️ Download CSV</a></p>
+  <p><a class="button secondary" href={`/admin/lezingen/${lecture.id}/aanmeldingen.csv`}>Download CSV</a></p>
   {message && <p class="notice success">{message}</p>}
 
   {rows.length === 0 ? (
