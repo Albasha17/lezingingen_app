@@ -5,16 +5,16 @@ import { createLecture, getAllLectures, getLectureBySlug, type Lecture } from ".
 import { parseLectureForm } from "../../../lib/lecture-form";
 
 let error = "";
-// Start from the most recent lecture's places and times, as the old form had them as defaults.
+// Lectures are normally at the Goethe-Institut; dinner, times and payment link come from the previous lecture.
+const DEFAULT_LOCATION = { lecture_name: "Goethe-Institut Amsterdam", lecture_address: "Herengracht 470, Amsterdam", lecture_maps_url: null };
 const [latest] = await getAllLectures();
 let values: Partial<Lecture> = latest
   ? {
       time_dinner: latest.time_dinner, time_lecture: latest.time_lecture, time_end: latest.time_end,
       dinner_name: latest.dinner_name, dinner_address: latest.dinner_address, dinner_maps_url: latest.dinner_maps_url,
-      lecture_name: latest.lecture_name, lecture_address: latest.lecture_address, lecture_maps_url: latest.lecture_maps_url,
-      payment_url: latest.payment_url,
+      payment_url: latest.payment_url, ...DEFAULT_LOCATION,
     }
-  : { time_dinner: "18:00", dinner_name: "Restaurant & Pizzeria Lucca Due", dinner_address: "Haarlemmerstraat 130, Amsterdam", lecture_name: "De Piramide", lecture_address: "Haarlemmer Houttuinen, Amsterdam" };
+  : { time_dinner: "18:00", dinner_name: "Restaurant & Pizzeria Lucca Due", dinner_address: "Haarlemmerstraat 130, Amsterdam", ...DEFAULT_LOCATION };
 
 if (Astro.request.method === "POST") {
   const result = await parseLectureForm(await Astro.request.formData(), null);

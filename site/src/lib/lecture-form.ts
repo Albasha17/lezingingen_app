@@ -28,6 +28,8 @@ export async function parseLectureForm(form: FormData, existing: Lecture | null)
   if (timeDinner && !TIME.test(timeDinner)) return { error: "De starttijd van het diner klopt niet." };
   if (!field(form, "lecture_name") || !field(form, "lecture_address")) return { error: "Vul de locatie van de lezing in." };
 
+  const online = field(form, "online") === "1";
+
   let imageKey = existing?.image_key ?? null;
   const photo = form.get("photo");
   if (photo instanceof File && photo.size > 0) {
@@ -58,7 +60,8 @@ export async function parseLectureForm(form: FormData, existing: Lecture | null)
       lecture_name: field(form, "lecture_name"),
       lecture_address: field(form, "lecture_address"),
       lecture_maps_url: normalizeUrl(optional(form, "lecture_maps_url")),
-      video_url: normalizeUrl(optional(form, "video_url")),
+      online: online ? 1 : 0,
+      video_url: online ? normalizeUrl(optional(form, "video_url")) : null,
       payment_url: normalizeUrl(optional(form, "payment_url")),
       signup_open: field(form, "signup_open") === "1" ? 1 : 0,
     },
