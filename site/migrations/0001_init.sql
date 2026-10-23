@@ -41,6 +41,17 @@ CREATE TABLE registrations (
 CREATE UNIQUE INDEX registrations_lecture_email ON registrations(lecture_id, lower(email)) WHERE email IS NOT NULL;
 CREATE INDEX registrations_lecture ON registrations(lecture_id);
 
+-- Who may use /admin. Cloudflare Access handles the email login; the site checks the
+-- signed-in email against this table. Owners can add and remove other admins.
+CREATE TABLE admins (
+  email TEXT PRIMARY KEY COLLATE NOCASE,
+  role TEXT NOT NULL CHECK (role IN ('owner', 'admin')),
+  added_by TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+INSERT INTO admins (email, role) VALUES ('eustudiegroep@gmail.com', 'owner');
+
 CREATE TABLE settings (
   key TEXT PRIMARY KEY,
   value TEXT NOT NULL
