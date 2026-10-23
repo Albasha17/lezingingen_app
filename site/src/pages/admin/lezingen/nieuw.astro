@@ -1,0 +1,37 @@
+---
+import LectureForm from "../../../components/LectureForm.astro";
+import Admin from "../../../layouts/Admin.astro";
+import { createLecture, getAllLectures, getLectureBySlug, type Lecture } from "../../../lib/db";
+import { parseLectureForm } from "../../../lib/lecture-form";
+
+let error = "";
+// Start from the most recent lecture's places and times, as the old form had them as defaults.
+const [latest] = await getAllLectures();
+let values: Partial<Lecture> = latest
+  ? {
+      time_dinner: latest.time_dinner, time_lecture: latest.time_lecture, time_end: latest.time_end,
+      dinner_name: latest.dinner_name, dinner_address: latest.dinner_address, dinner_maps_url: latest.dinner_maps_url,
+      lecture_name: latest.lecture_name, lecture_address: latest.lecture_address, lecture_maps_url: latest.lecture_maps_url,
+      payment_url: latest.payment_url,
+    }
+  : { time_dinner: "18:00", dinner_name: "Restaurant & Pizzeria Lucca Due", dinner_address: "Haarlemmerstraat 130, Amsterdam", lecture_name: "De Piramide", lecture_address: "Haarlemmer Houttuinen, Amsterdam" };
+
+if (Astro.request.method === "POST") {
+  const result = await parseLectureForm(await Astro.request.formData(), null);
+  if ("error" in result) {
+    error = result.error;
+  } else if (await getLectureBySlug(result.input.slug)) {
+    error = "Er bestaat al een lezing met deze spreker op deze datum.";
+    values = result.input;
+  } else {
+    const lecture = await createLecture(result.input);
+    return Astro.redirect(`/admin/lezingen/${lecture.id}?opgeslagen=1`, 303);
+  }
+}
+---
+
+<Admin title="Nieuwe lezing">
+  <h1>Nieuwe lezing</h1>
+  {error && <p class="notice error">{error}</p>}
+  <LectureForm lecture={values} submitLabel="💾 Opslaan en live zetten" />
+</Admin>

@@ -1,0 +1,53 @@
+---
+import { env } from "cloudflare:workers";
+import Admin from "../../layouts/Admin.astro";
+import { getSettings, saveSettings } from "../../lib/db";
+import { field, isEmail } from "../../lib/forms";
+
+let error = "";
+let saved = false;
+if (Astro.request.method === "POST") {
+  const form = await Astro.request.formData();
+  const values = {
+    contact_email: field(form, "contact_email"),
+    price_single: field(form, "price_single"),
+    price_half_season: field(form, "price_half_season"),
+    price_full_season: field(form, "price_full_season"),
+  };
+  if (!isEmail(values.contact_email)) error = "Vul een geldig contactadres in.";
+  else {
+    await saveSettings(values);
+    saved = true;
+  }
+}
+const settings = await getSettings();
+const feedUrl = env.CALENDAR_FEED_TOKEN ? `${env.SITE_URL}/feed/${env.CALENDAR_FEED_TOKEN}.ics` : null;
+---
+
+<Admin title="Instellingen">
+  <h1>Instellingen</h1>
+  {saved && <p class="notice success">✅ Opgeslagen.</p>}
+  {error && <p class="notice error">{error}</p>}
+  <form method="post" class="admin">
+    <label>Contactadres op de website<input type="email" name="contact_email" value={settings.contact_email} /></label>
+    <div class="row">
+      <label>Prijs per lezing (€)<input name="price_single" value={settings.price_single} /></label>
+      <label>Half seizoen, 5 lezingen (€)<input name="price_half_season" value={settings.price_half_season} /></label>
+    </div>
+    <label>Heel seizoen, 10 lezingen (€)<input name="price_full_season" value={settings.price_full_season} /></label>
+    <button type="submit" class="button">Opslaan</button>
+  </form>
+
+  <h2>📅 Agenda voor organisatoren</h2>
+  {feedUrl ? (
+    <>
+      <p>
+        Voeg deze link toe in Google Agenda via "Andere agenda's → Via URL". Alle lezingen en diners verschijnen dan
+        automatisch, met het aantal aanmeldingen in de beschrijving. Deel de link niet buiten de organisatie.
+      </p>
+      <input readonly value={feedUrl} onclick="this.select()" />
+    </>
+  ) : (
+    <p>Nog niet ingesteld: zet het geheim <code>CALENDAR_FEED_TOKEN</code> in Cloudflare.</p>
+  )}
+</Admin>

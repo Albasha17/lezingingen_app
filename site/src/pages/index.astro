@@ -1,0 +1,50 @@
+---
+import Base from "../layouts/Base.astro";
+import LectureCard from "../components/LectureCard.astro";
+import { getSettings, getUpcomingLectures } from "../lib/db";
+
+const [upcoming, settings] = await Promise.all([getUpcomingLectures(), getSettings()]);
+const [next, ...later] = upcoming;
+const contact = settings.contact_email ?? "eustudiegroep@gmail.com";
+---
+
+<Base title="EU Studiegroep">
+  <section class="hero" slot="hero">
+    <div class="container">
+      <h1>🇪🇺 EU Studiegroep</h1>
+      <p>
+        Elke maand een lezing over Europa door iemand die er dagelijks mee werkt, in Amsterdam en online. Vooraf eten we
+        samen een pizza.
+      </p>
+      {next && <a class="button" href={`/lezingen/${next.slug}#aanmelden`}>Aanmelden voor de volgende lezing</a>}
+    </div>
+  </section>
+
+  <section id="lezingen">
+    <h2>Volgende lezing</h2>
+    {next ? <LectureCard lecture={next} highlight /> : <p class="notice">De volgende lezing wordt binnenkort bekendgemaakt.</p>}
+
+    {later.length > 0 && (
+      <>
+        <h2>Daarna</h2>
+        {later.map((lecture) => <LectureCard lecture={lecture} />)}
+      </>
+    )}
+  </section>
+
+  <section id="kosten">
+    <h2>Kosten</h2>
+    <p>Om alles te kunnen bekostigen vragen we om een kleine bijdrage.</p>
+    <ul class="prices">
+      <li><strong>Per lezing:</strong> € {settings.price_single ?? "10"},-</li>
+      <li><strong>Half seizoen (5 lezingen):</strong> € {settings.price_half_season ?? "40"},-</li>
+      <li><strong>Heel seizoen (10 lezingen):</strong> € {settings.price_full_season ?? "60"},-</li>
+    </ul>
+  </section>
+
+  <section id="contact">
+    <h2>Vragen?</h2>
+    <p>Heb je vragen of lukt het aanmelden niet? Stuur ons gerust een mailtje.</p>
+    <a class="button secondary" href={`mailto:${contact}`}>📧 {contact}</a>
+  </section>
+</Base>

@@ -1,0 +1,170 @@
+---
+import { env } from "cloudflare:workers";
+import Base from "../../../layouts/Base.astro";
+import { attendanceFor, googleCalendarUrl, type Attendance } from "../../../lib/calendar";
+import { getLectureBySlug, getSettings, markEmailSent, saveRegistration, todayAmsterdam, type RegistrationStatus } from "../../../lib/db";
+import { sendConfirmation } from "../../../lib/email";
+import { field, isEmail } from "../../../lib/forms";
+import { imageUrl, lectureTitle, longDate, mapsUrl, shortDate } from "../../../lib/format";
+import { verifyTurnstile } from "../../../lib/turnstile";
+
+const lecture = await getLectureBySlug(Astro.params.slug ?? "");
+if (!lecture) {
+  return new Response(null, { status: 404 });
+}
+
+const settings = await getSettings();
+const isPast = lecture.date < todayAmsterdam();
+const signupOpen = Boolean(lecture.signup_open) && !isPast;
+const hasDinner = Boolean(lecture.time_dinner && lecture.dinner_name);
+const photo = imageUrl(lecture);
+const dinnerMaps = mapsUrl(lecture.dinner_maps_url, lecture.dinner_name, lecture.dinner_address);
+const lectureMaps = mapsUrl(lecture.lecture_maps_url, lecture.lecture_name, lecture.lecture_address);
+
+const KEUZES = ["diner", "lezing", "online", "afgemeld"] as const;
+type Keuze = (typeof KEUZES)[number];
+
+let error = "";
+let values = { keuze: "", first_name: "", last_name: "", email: "" };
+let done: { firstName: string; keuze: Keuze; attendance?: Attendance; emailed: boolean; email: string } | null = null;
+
+if (Astro.request.method === "POST" && signupOpen) {
+  const form = await Astro.request.formData();
+  values = { keuze: field(form, "keuze"), first_name: field(form, "first_name"), last_name: field(form, "last_name"), email: field(form, "email").toLowerCase() };
+  const keuze = values.keuze as Keuze;
+
+  if (!KEUZES.includes(keuze) || (keuze === "diner" && !hasDinner)) {
+    error = "Kies hoe je de lezing bijwoont.";
+  } else if (!values.first_name || !values.last_name) {
+    error = "Vul je voor- en achternaam in.";
+  } else if (keuze !== "afgemeld" && !isEmail(values.email)) {
+    error = "Vul een geldig e-mailadres in; daar sturen we de bevestiging en videolink naartoe.";
+  } else if (values.email && !isEmail(values.email)) {
+    error = "Dit e-mailadres lijkt niet te kloppen.";
+  } else if (!(await verifyTurnstile(form.get("cf-turnstile-response"), Astro.clientAddress))) {
+    error = "De controle tegen spam is mislukt. Probeer het nog eens.";
+  } else {
+    const status: RegistrationStatus = keuze === "online" ? "online" : keuze === "afgemeld" ? "afgemeld" : "fysiek";
+    const registration = await saveRegistration({
+      lectureId: lecture.id,
+      firstName: values.first_name,
+      lastName: values.last_name,
+      email: values.email || null,
+      status,
+      dinner: keuze === "diner",
+    });
+    let emailed = false;
+    if (status !== "afgemeld") {
+      emailed = await sendConfirmation(lecture, registration);
+      if (emailed) await markEmailSent(registration.id);
+    }
+    done = {
+      firstName: values.first_name,
+      keuze,
+      attendance: status === "afgemeld" ? undefined : attendanceFor(lecture, status, keuze === "diner"),
+      emailed,
+      email: values.email,
+    };
+  }
+}
+---
+
+<Base title={`${lecture.speaker_name} · EU Studiegroep`} description={lecture.speaker_role}>
+  {env.TURNSTILE_SITE_KEY && signupOpen && <script is:inline src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>}
+
+  <p class="meta">🇪🇺 {lectureTitle(lecture.date)}</p>
+  <h1>{lecture.speaker_name}</h1>
+  {lecture.speaker_role && <p><em>{lecture.speaker_role}</em></p>}
+  {photo && <img class="speaker-photo" src={photo} alt={lecture.speaker_name} />}
+  {lecture.speaker_bio.split(/\n{2,}/).map((para) => <p>{para}</p>)}
+  {lecture.speaker_linkedin && <p><a class="button secondary" href={lecture.speaker_linkedin}>👔 LinkedIn profiel</a></p>}
+
+  <h2>📅 {longDate(lecture.date)}</h2>
+  {hasDinner && (
+    <div class="program dinner">
+      <p><strong>🍕 Diner</strong></p>
+      <p><strong>🕕 {lecture.time_dinner}</strong> (aanvang)</p>
+      <p>📍 <strong>{lecture.dinner_name}</strong> ({lecture.dinner_address} · <a href={dinnerMaps}>Route</a>)</p>
+    </div>
+  )}
+  <div class="program">
+    <p><strong>🎤 Lezing</strong></p>
+    <p><strong>🕢 {lecture.time_lecture}</strong> (aanvang)</p>
+    <p>📍 <strong>{lecture.lecture_name}</strong> ({lecture.lecture_address} · <a href={lectureMaps}>Route</a>)</p>
+    {lecture.video_url && <p>💻 Ook online te volgen via een videolink, die je na aanmelding ontvangt.</p>}
+  </div>
+
+  {!isPast && (
+    <>
+      <h2>💶 Kosten</h2>
+      <p>
+        Per lezing € {settings.price_single ?? "10"},-, half seizoen (5 lezingen) € {settings.price_half_season ?? "40"},-, heel
+        seizoen (10 lezingen) € {settings.price_full_season ?? "60"},-. Vul bij het betalen zelf het bedrag en je naam in.
+      </p>
+      {lecture.payment_url && <a class="button secondary" href={lecture.payment_url}>💳 Betaalverzoek openen</a>}
+
+      <h2 id="aanmelden">📝 Aanmelden</h2>
+      {done ? (
+        done.attendance ? (
+          <div class="notice success">
+            <p>
+              ✅ Bedankt {done.firstName}! Je staat op de lijst voor <strong>{done.attendance.summary}</strong>. Tot{" "}
+              <strong>{shortDate(lecture.date)}</strong> (aanvang <strong>{done.attendance.start}</strong> bij{" "}
+              {done.attendance.placeUrl ? <a href={done.attendance.placeUrl}>{done.attendance.placeName}</a> : done.attendance.placeName}).
+            </p>
+            {done.emailed ? (
+              <p>📧 Bevestigingsmail verstuurd naar {done.email}.</p>
+            ) : (
+              <p>De bevestigingsmail kon niet worden verstuurd, maar je aanmelding staat genoteerd.</p>
+            )}
+            <h3>📅 Zet direct in je agenda</h3>
+            <p class="buttons">
+              <a class="button" href={googleCalendarUrl(lecture, done.attendance)}>Google Agenda ↗</a>
+              <a class="button secondary" href={`/lezingen/${lecture.slug}/agenda.ics?keuze=${done.attendance.kind}`}>Outlook / iCal 📥</a>
+            </p>
+          </div>
+        ) : (
+          <p class="notice success">Jammer! Je afmelding is geregistreerd, {done.firstName}.</p>
+        )
+      ) : signupOpen ? (
+        <form method="post" action="#aanmelden" class="signup">
+          {error && <p class="notice error" role="alert">{error}</p>}
+          <fieldset>
+            <legend>Hoe ben je erbij op {shortDate(lecture.date)}?</legend>
+            {hasDinner && (
+              <label class="choice">
+                <input type="radio" name="keuze" value="diner" required checked={values.keuze === "diner"} />
+                Fysiek, met diner vooraf (start {lecture.time_dinner})
+              </label>
+            )}
+            <label class="choice">
+              <input type="radio" name="keuze" value="lezing" required checked={values.keuze === "lezing"} />
+              Fysiek, alleen de lezing (start {lecture.time_lecture})
+            </label>
+            {lecture.video_url && (
+              <label class="choice">
+                <input type="radio" name="keuze" value="online" required checked={values.keuze === "online"} />
+                Online, via de videolink
+              </label>
+            )}
+            <label class="choice">
+              <input type="radio" name="keuze" value="afgemeld" required checked={values.keuze === "afgemeld"} />
+              Ik kan niet, ik meld me af
+            </label>
+          </fieldset>
+          <div class="row">
+            <label>Voornaam<input name="first_name" autocomplete="given-name" required value={values.first_name} /></label>
+            <label>Achternaam<input name="last_name" autocomplete="family-name" required value={values.last_name} /></label>
+          </div>
+          <label>E-mailadres (voor bevestiging en videolink; optioneel bij afmelden)
+            <input type="email" name="email" autocomplete="email" placeholder="jouw@email.nl" value={values.email} />
+          </label>
+          {env.TURNSTILE_SITE_KEY && <div class="cf-turnstile" data-sitekey={env.TURNSTILE_SITE_KEY} data-language="nl"></div>}
+          <button type="submit" class="button">Verstuur</button>
+        </form>
+      ) : (
+        <p class="notice">Aanmelden voor deze lezing is gesloten.</p>
+      )}
+    </>
+  )}
+</Base>

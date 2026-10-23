@@ -1,0 +1,12 @@
+---
+import Base from "../layouts/Base.astro";
+import LectureCard from "../components/LectureCard.astro";
+import { getPastLectures } from "../lib/db";
+
+const past = await getPastLectures();
+---
+
+<Base title="Archief · EU Studiegroep">
+  <h1>Eerdere lezingen</h1>
+  {past.length === 0 ? <p>Nog geen eerdere lezingen.</p> : past.map((lecture) => <LectureCard lecture={lecture} />)}
+</Base>

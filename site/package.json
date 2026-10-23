@@ -1,0 +1,23 @@
+{
+  "name": "studiegroep-site",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "db:migrate:local": "wrangler d1 migrations apply studiegroep --local",
+    "db:migrate:remote": "wrangler d1 migrations apply studiegroep --remote",
+    "types": "wrangler types --strict-vars=false",
+    "check": "astro check"
+  },
+  "dependencies": {
+    "@astrojs/cloudflare": "^14.4.2",
+    "astro": "^7.4.1"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.12",
+    "typescript": "^6.0.3",
+    "wrangler": "^4.152.0"
+  }
+}

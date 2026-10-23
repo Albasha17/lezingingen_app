@@ -1,0 +1,7 @@
+# Copy to .dev.vars for local development. Leave RESEND_API_KEY empty to print emails to the console.
+RESEND_API_KEY=
+TURNSTILE_SECRET_KEY=
+CALENDAR_FEED_TOKEN=dev-feed-token
+# Local only: treat this email as signed in to /admin (ignored in production builds)
+DEV_ADMIN_EMAIL=eustudiegroep@gmail.com
+SITE_URL=http://localhost:4321
