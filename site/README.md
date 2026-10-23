@@ -36,7 +36,9 @@ Locally `/admin` treats `DEV_ADMIN_EMAIL` as signed in. Production builds ignore
    application's AUD tag into `ACCESS_AUD` and the team domain (`https://<team>.cloudflareaccess.com`) into
    `ACCESS_TEAM_DOMAIN` in `wrangler.jsonc`, then deploy again. Who actually gets in is decided by the
    `admins` table, which eustudiegroep@gmail.com manages at /admin/beheerders.
-9. Optional: Email Routing for `info@studiegroep.eu` → eustudiegroep@gmail.com.
+9. Email Routing: Email > Email Routing > enable for studiegroep.eu, add destination eustudiegroep@gmail.com (confirm the
+   verification mail) and a custom address `info` forwarding to it. The site shows info@studiegroep.eu as contact
+   address and uses it as reply-to on confirmation mails.
 
 ## Layout
 

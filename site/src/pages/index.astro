@@ -5,7 +5,7 @@ import { getSettings, getUpcomingLectures } from "../lib/db";
 
 const [upcoming, settings] = await Promise.all([getUpcomingLectures(), getSettings()]);
 const [next, ...later] = upcoming;
-const contact = settings.contact_email ?? "eustudiegroep@gmail.com";
+const contact = settings.contact_email ?? "info@studiegroep.eu";
 ---
 
 <Base title="EU Studiegroep">
