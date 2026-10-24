@@ -75,7 +75,7 @@ if (Astro.request.method === "POST" && signupOpen) {
     <h1>{lecture.speaker_name}</h1>
     {lecture.speaker_role && <p class="lead">{lecture.speaker_role}</p>}
     <div class="times glass" style="padding: 8px; margin-top: 16px; max-width: 480px">
-      {hasDinner && <div><span>Pizza</span><strong>{lecture.time_dinner}</strong></div>}
+      {hasDinner && <div><span>Eten</span><strong>{lecture.time_dinner}</strong></div>}
       <div><span>Lezing</span><strong>{lecture.time_lecture}</strong></div>
       <div><span>Tot</span><strong>{lecture.time_end}</strong></div>
     </div>
@@ -93,7 +93,7 @@ if (Astro.request.method === "POST" && signupOpen) {
       {hasDinner && (
         <div class="program">
           <span class="time">{lecture.time_dinner}</span>
-          <p><strong>Pizza bij {lecture.dinner_name}</strong><br /><span class="muted">{lecture.dinner_address} · </span><a href={dinnerMaps}>Route</a></p>
+          <p><strong>Eten bij {lecture.dinner_name}</strong><br /><span class="muted">{lecture.dinner_address} · </span><a href={dinnerMaps}>Route</a></p>
         </div>
       )}
       <div class="program">

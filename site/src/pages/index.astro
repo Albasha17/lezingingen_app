@@ -32,7 +32,7 @@ const hasDinner = Boolean(next?.time_dinner && next?.dinner_name);
           {next.speaker_role && <span class="muted">{next.speaker_role}</span>}
         </div>
         <div class="times">
-          {hasDinner && <div><span>Pizza</span><strong>{next.time_dinner}</strong></div>}
+          {hasDinner && <div><span>Eten</span><strong>{next.time_dinner}</strong></div>}
           <div><span>Lezing</span><strong>{next.time_lecture}</strong></div>
           <div><span>Tot</span><strong>{next.time_end}</strong></div>
         </div>
@@ -48,7 +48,7 @@ const hasDinner = Boolean(next?.time_dinner && next?.dinner_name);
           {hasDinner && (
             <div class="program">
               <span class="time">{next.time_dinner}</span>
-              <p><strong>Pizza bij {next.dinner_name}</strong><br /><span class="muted">{next.dinner_address} · </span><a href={mapsUrl(next.dinner_maps_url, next.dinner_name, next.dinner_address)}>Route</a></p>
+              <p><strong>Eten bij {next.dinner_name}</strong><br /><span class="muted">{next.dinner_address} · </span><a href={mapsUrl(next.dinner_maps_url, next.dinner_name, next.dinner_address)}>Route</a></p>
             </div>
           )}
           <div class="program">
