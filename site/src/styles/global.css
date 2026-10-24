@@ -119,7 +119,17 @@ header.site a.cta { color: var(--amber-ink); min-height: 40px; padding: 8px 18px
 @media (max-width: 640px) {
   header.site .bar { border-radius: var(--radius); padding: 8px 8px 6px 14px; }
   header.site a.cta { margin-left: auto; }
-  header.site nav { order: 3; width: 100%; margin-left: -10px; gap: 4px; }
+  header.site nav {
+    order: 3;
+    width: 100%;
+    margin-top: 2px;
+    padding-top: 6px;
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 4px;
+  }
+  header.site nav a { text-align: center; padding: 8px 4px; }
 }
 
 /* Hero blocks */
