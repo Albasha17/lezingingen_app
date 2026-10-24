@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "studiegroep",
+  "name": "lezingingen-app",
   "compatibility_date": "2026-10-01",
   "compatibility_flags": ["nodejs_compat"],
   "d1_databases": [
