@@ -23,7 +23,7 @@ const hasDinner = Boolean(lecture.time_dinner && lecture.dinner_name);
       {hasDinner && (
         <label class="choice">
           <input type="radio" name="keuze" value="diner" required checked={values.keuze === "diner"} />
-          Pizza vooraf + lezing ({lecture.time_dinner})
+          Eten vooraf + lezing ({lecture.time_dinner})
         </label>
       )}
       <label class="choice">
