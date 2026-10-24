@@ -61,7 +61,6 @@ const hasDinner = Boolean(next?.time_dinner && next?.dinner_name);
               <p><strong>Of kijk thuis mee</strong><br /><span class="muted">De link staat in je bevestigingsmail.</span></p>
             </div>
           )}
-          <p><a href={`/lezingen/${next.slug}`}>Meer over {next.speaker_name}</a></p>
         </div>
         <div id="aanmelden">
           {next.signup_open ? <SignupForm lecture={next} /> : <p class="notice">Aanmelden voor deze avond is gesloten.</p>}
